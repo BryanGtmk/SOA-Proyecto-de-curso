@@ -1,0 +1,155 @@
+===============================================================
+ GUIA PARA EJECUTAR LOS PROYECTOS - VEHICULOS + NOTIFICACIONES
+===============================================================
+
+Proyectos:
+  - notificaciones-service         -> puerto 8081 (no usa base de datos)
+  - venta-vehiculos-api_security   -> puerto 8080 (usa MySQL + JWT)
+
+---------------------------------------------------------------
+ 0. REQUISITOS (una sola vez)
+---------------------------------------------------------------
+  - Java 17 o superior instalado (comprobar con: java -version)
+  - XAMPP con MySQL
+  - Base de datos "venta_vehiculos" con las tablas
+    "vehiculos" y "usuarios_api"
+  - Postman
+  - Maven en el PATH. Ya se agrego esta ruta al PATH del usuario:
+      C:\Users\user\.m2\wrapper\dists\apache-maven-3.9.16\56ba1f9f\bin
+    Si "mvn" no se reconoce, cerrar y volver a abrir la terminal.
+    En venta-vehiculos-api_security tambien se puede usar .\mvnw.cmd
+
+---------------------------------------------------------------
+ 1. ENCENDER MYSQL (SIEMPRE PRIMERO)
+---------------------------------------------------------------
+  Opcion A: abrir el XAMPP Control Panel -> boton Start de MySQL
+  Opcion B: en una terminal:
+      C:\xampp\mysql_start.bat
+
+  Sin MySQL la API de vehiculos NO arranca y el "package"
+  falla con el error:
+      "Unable to determine Dialect without JDBC metadata"
+
+---------------------------------------------------------------
+ 2. EJECUTAR notificaciones-service (puerto 8081)
+---------------------------------------------------------------
+  cd "C:\Users\user\Documents\5to semestre\APLICACIONES ORIENTADAS A SERVICIOS\2do parcial\TALLER\VEHICULOSNOTIFICACION\notificaciones-service"
+  mvn spring-boot:run
+
+  Esta listo cuando aparece:  Tomcat started on port 8081
+
+---------------------------------------------------------------
+ 3. EJECUTAR venta-vehiculos-api_security
+---------------------------------------------------------------
+  cd "C:\Users\user\Documents\5to semestre\APLICACIONES ORIENTADAS A SERVICIOS\2do parcial\TALLER\VEHICULOSNOTIFICACION\venta-vehiculos-api_security"
+
+  Forma 1 - directo desde el codigo (puerto 8080):
+      mvn spring-boot:run
+
+  Forma 2 - generar el .jar y ejecutarlo:
+      mvn clean package
+      (si MySQL esta apagado:  mvn clean package -DskipTests)
+
+      El jar queda en:
+      target\venta-vehiculos-api-0.0.1-SNAPSHOT.jar
+
+      java -jar target\venta-vehiculos-api-0.0.1-SNAPSHOT.jar
+
+  OJO: es "clean", NO "clear".
+
+---------------------------------------------------------------
+ 4. EJECUTAR VARIAS INSTANCIAS EN PUERTOS DIFERENTES
+---------------------------------------------------------------
+  Se agrega --server.port=XXXX al final (una terminal por instancia):
+
+      java -jar venta-vehiculos-api-0.0.1-SNAPSHOT.jar --server.port=8082
+      java -jar venta-vehiculos-api-0.0.1-SNAPSHOT.jar --server.port=8083
+
+  - NO usar el 8081 (es del servicio de notificaciones).
+  - Todas las instancias usan la misma base de datos.
+  - Para ver que instancia responde:
+      GET http://localhost:8082/api/vehiculos/intancia   (con token)
+    devuelve el puerto real de esa instancia.
+
+---------------------------------------------------------------
+ 5. PROBAR EN POSTMAN
+---------------------------------------------------------------
+  IMPORTANTE: abrir http://localhost:8080 o :8081 en el navegador
+  da 404 / 403. ES NORMAL: son APIs REST sin pagina de inicio.
+  Se prueban con Postman.
+
+  5.1 Notificaciones (no necesita token)
+      POST http://localhost:8081/api/notificaciones
+      Body -> raw -> JSON:
+      {
+        "vehiculoId": 5,
+        "destinatario": "usuario@correo.com",
+        "tipo": "REGISTRO",
+        "mensaje": "Vehiculo registrado correctamente"
+      }
+      Respuesta esperada: 201 Created
+      "tipo" solo acepta: REGISTRO, ACTUALIZACION, ELIMINACION
+
+  5.2 Obtener token JWT de la API de vehiculos
+      POST http://localhost:8080/oauth/token
+      Authorization -> Basic Auth:
+          Username: cliente_vehiculos
+          Password: secreto_cliente_vehiculos
+      Body -> x-www-form-urlencoded:
+          grant_type = password
+          username   = (usuario de la tabla usuarios_api)
+          password   = (contrasena de ese usuario)
+
+      Usuarios existentes y su rol:
+          usuario_consulta  -> CONSULTA (solo GET)
+          usuario_operador  -> OPERADOR (GET, POST, PUT)
+          usuario_admin     -> ADMIN    (todo, incluido DELETE)
+          demo_admin        -> ADMIN
+          demo_api          -> ADMIN
+      (las contrasenas estan cifradas con BCrypt en la base;
+       usar las que se definieron al crear los usuarios)
+
+      Copiar el "access_token" de la respuesta.
+
+  5.3 Usar la API con el token
+      Authorization -> Bearer Token -> pegar el access_token
+
+      GET    http://localhost:8080/api/vehiculos
+      GET    http://localhost:8080/api/vehiculos?marca=Toyota
+      GET    http://localhost:8080/api/vehiculos/{id}
+      GET    http://localhost:8080/api/vehiculos/intancia
+      POST   http://localhost:8080/api/vehiculos        (body JSON)
+      PUT    http://localhost:8080/api/vehiculos/{id}   (body JSON)
+      DELETE http://localhost:8080/api/vehiculos/{id}
+
+---------------------------------------------------------------
+ 6. DETENER
+---------------------------------------------------------------
+  - Cada servicio: Ctrl + C en su terminal.
+  - MySQL: Stop en XAMPP o  C:\xampp\mysql_stop.bat
+
+---------------------------------------------------------------
+ 7. ERRORES COMUNES
+---------------------------------------------------------------
+  "mvn no se reconoce"
+      -> Reabrir la terminal, o usar .\mvnw.cmd
+
+  "Unknown lifecycle phase clear"
+      -> Se escribe "clean"
+
+  "Unable to determine Dialect without JDBC metadata"
+      -> MySQL esta apagado. Encenderlo (paso 1).
+
+  "Port 8080 was already in use"
+      -> Ya hay algo en ese puerto. Cerrar la otra instancia o
+         usar --server.port=OTRO
+
+  Navegador muestra 404 (8081) o 403 (8080)
+      -> Normal. Probar con Postman (paso 5).
+
+  401 en /oauth/token
+      -> Revisar Basic Auth (cliente) o usuario/contrasena.
+
+  403 en /api/vehiculos con token
+      -> El rol del usuario no tiene permiso para ese metodo
+         (ej. CONSULTA no puede hacer POST).
