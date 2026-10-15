@@ -1,69 +1,107 @@
-// Define el paquete donde se ubica la clase para la gestión global de excepciones
+
 package ec.edu.uta.venta_vehiculos_api.exception;
 
-// Importa la interfaz Map para estructurar las respuestas de error en pares clave-valor
-import java.util.Map;
+import java.net.URI;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
+import java.util.UUID;
 
-// Anotación que convierte esta clase en un capturador global de excepciones para la API REST
+import org.slf4j.LoggerFactory;
+
+import org.springframework.dao.DataIntegrityViolationException;
+
+import org.springframework.http.*;
+
+import org.springframework.http.converter.HttpMessageNotReadableException;
+
+import org.springframework.web.bind.MethodArgumentNotValidException;
+
+import org.springframework.web.bind.annotation.*;
+
+import org.springframework.web.ErrorResponse;
+
+import jakarta.servlet.http.HttpServletRequest;
+
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
-    // Define que este método interceptará todas las excepciones de tipo IllegalArgumentException
-    @ExceptionHandler(
-            IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>>
-    manejarBadRequest(
-            IllegalArgumentException e) { // Recibe el objeto de la excepción capturada
+    @ExceptionHandler(Exception.class)
 
-        // Retorna una respuesta HTTP personalizada
-        return ResponseEntity
-                // Asigna el código de estado HTTP 400 Bad Request
-                .status(HttpStatus.BAD_REQUEST)
-                // Construye el cuerpo JSON de respuesta con un mapa inmutable
-                .body(Map.of(
-                        "success", false, // Indicar estado de fallo
-                        "mensaje", e.getMessage() // Captura y envía el mensaje explicativo del error
-                ));
+    public ResponseEntity<ProblemDetail> manejar(
+            Exception ex, HttpServletRequest req) {
+
+        int status = 500;
+
+        String codigo = "ERROR_INTERNO";
+
+        String detalle = "No fue posible completar la solicitud";
+
+        if (ex instanceof ApiError e) {
+
+            status = e.status;
+            codigo = e.codigo;
+            detalle = e.getMessage();
+
+        } else if (ex instanceof MethodArgumentNotValidException e) {
+
+            status = 422;
+            codigo = "VALIDACION";
+
+            detalle = e.getBindingResult().getFieldErrors().stream()
+
+                .map(x -> x.getField() + ": " + x.getDefaultMessage())
+
+                .reduce((a,b) -> a + "; " + b)
+
+                .orElse("Datos inválidos");
+
+        } else if (ex instanceof HttpMessageNotReadableException) {
+
+            status = 400;
+            codigo = "JSON_INVALIDO";
+            detalle = "JSON ilegible o tipo de dato incorrecto";
+
+        } else if (ex instanceof DataIntegrityViolationException) {
+
+            status = 409;
+            codigo = "CONFLICTO_DATOS";
+            detalle = "Duplicado o relación que impide la operación";
+
+        } else if (ex instanceof IllegalArgumentException) {
+
+            status = 400;
+            codigo = "SOLICITUD_INVALIDA";
+            detalle = ex.getMessage();
+
+        } else if (ex instanceof ErrorResponse e) {
+
+            status = e.getStatusCode().value();
+
+            codigo = "ERROR_HTTP";
+
+            detalle = e.getBody().getDetail();
+        }
+
+        String trace = UUID.randomUUID().toString();
+
+        if (status >= 500)
+            LoggerFactory.getLogger(getClass())
+                .error("Error " + trace, ex);
+
+        ProblemDetail p = ProblemDetail.forStatusAndDetail(
+            HttpStatusCode.valueOf(status), detalle);
+
+        p.setType(URI.create("urn:vehiculos:" + codigo.toLowerCase()));
+
+        p.setInstance(URI.create(req.getRequestURI()));
+
+        p.setProperty("codigo", codigo);
+
+        p.setProperty("traceId", trace);
+
+        return ResponseEntity.status(status)
+            .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+            .body(p);
+
     }
 
-    // Define que este método interceptará todas las excepciones de tipo IllegalStateException
-    @ExceptionHandler(
-            IllegalStateException.class)
-    public ResponseEntity<Map<String, Object>>
-    manejarConflict(
-            IllegalStateException e) { // Recibe la excepción lanzada cuando hay conflictos de estado
-
-        // Retorna una respuesta HTTP personalizada
-        return ResponseEntity
-                // Asigna el código de estado HTTP 409 Conflict
-                .status(HttpStatus.CONFLICT)
-                // Construye el cuerpo JSON de respuesta indicando fallo y mensaje
-                .body(Map.of(
-                        "success", false, // Indicar estado de fallo
-                        "mensaje", e.getMessage() // Obtiene el mensaje del conflicto
-                ));
-    }
-
-    // Define que este método interceptará las excepciones genéricas de tipo RuntimeException
-    @ExceptionHandler(
-            RuntimeException.class)
-    public ResponseEntity<Map<String, Object>>
-    manejarNotFound(
-            RuntimeException e) { // Recibe la excepción enviada al no encontrar registros
-
-        // Retorna una respuesta HTTP personalizada
-        return ResponseEntity
-                // Asigna el código de estado HTTP 404 Not Found
-                .status(HttpStatus.NOT_FOUND)
-                // Construye el cuerpo JSON de respuesta con la estructura de error
-                .body(Map.of(
-                        "success", false, // Indicar estado de fallo
-                        "mensaje", e.getMessage() // Retorna el mensaje de recurso no encontrado
-                ));
-    }
 }
