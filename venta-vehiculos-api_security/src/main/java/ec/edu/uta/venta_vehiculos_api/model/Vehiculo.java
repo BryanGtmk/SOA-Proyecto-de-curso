@@ -44,6 +44,7 @@ public class Vehiculo {
     private String color;
 
     // Campo para guardar el precio del vehículo con precisión decimal
+    @Column (precision = 12, scale = 2, nullable = false) // Define la precisión y escala para el precio
     private BigDecimal precio;
 
     // Campo para guardar el estado actual del vehículo (ej. Disponible, Vendido)
