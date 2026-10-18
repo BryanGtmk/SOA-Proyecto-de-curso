@@ -1,0 +1,25 @@
+show create table VEHICULOS;
+show create table usuarios_api;
+show index from vehiculos;
+
+
+select placa, COUNT(*) from vehiculos group by placa having COUNT(*)>1;
+select chasis, COUNT(*) from vehiculos group by placa having COUNT(*)>1;
+select id_vehiculo,placa,precio,estado from vehiculos limit 10;
+
+ALTER TABLE vehiculos 
+    MODIFY precio DECIMAL(12,2) NOT NULL, 
+    MODIFY estado VARCHAR(255) NOT NULL;
+
+CREATE TABLE reservas (
+    id VARCHAR(36) PRIMARY KEY,
+    operacion_id VARCHAR(64) NOT NULL UNIQUE,
+    vehiculo_id INT NOT NULL,
+    precio DECIMAL(12,2) NOT NULL,
+    moneda VARCHAR(3) NOT NULL,
+    estado VARCHAR(20) NOT NULL,
+    CONSTRAINT fk_reserva_vehiculo FOREIGN KEY (vehiculo_id)
+        REFERENCES vehiculos(id_vehiculo),
+    CONSTRAINT ck_reserva_estado CHECK
+        (estado IN ('RESERVADA', 'CONFIRMADA', 'LIBERADA'))
+) ENGINE=InnoDB;
