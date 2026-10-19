@@ -1,0 +1,1207 @@
+﻿Archivo 01 - MODIFICAR - pom.xml
+
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
+
+
+Archivo 02 - REEMPLAZAR - application.properties
+
+server.port=8080
+server.address=127.0.0.1
+
+spring.datasource.url=jdbc:mysql://127.0.0.1:3306/venta_vehiculos?useSSL=false&serverTimezone=UTC
+spring.datasource.username=root
+spring.datasource.password=
+
+spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.open-in-view=false
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+
+app.security.jwt-secret=ZgF1H57pdP00VgPHNFVCr7pdbi4WRHF+3AeVikPAmk4=
+app.security.access-token-minutes=30
+app.security.refresh-token-minutes=1440
+app.security.client-id=vehiculos-client
+app.security.client-secret=cliente-local-aula-2026-cambiar
+
+app.security.ventas-key=ventas-java-python-aula-2026-key-9F2uN4bS6x8Q1m
+
+servicios.notificaciones.url=http://127.0.0.1:8081
+servicios.notificaciones.key=avisos-java-python-aula-2026-key-7G5nP3rQ8c6L2t
+servicios.notificaciones.destinatario=pruebas@ejemplo.com
+
+app.bootstrap.user=admin-local
+app.bootstrap.password=cambiar-contrasena-aula-2026
+app.bootstrap.role=ADMIN
+
+
+Archivo 03 - CONSULTAR - SQL
+
+USE venta_vehiculos;
+SHOW CREATE TABLE vehiculos;
+SHOW CREATE TABLE usuarios_api;
+SHOW INDEX FROM vehiculos;
+SELECT VERSION();
+SELECT placa, COUNT(*) FROM vehiculos GROUP BY placa HAVING COUNT(*) > 1;
+SELECT chasis, COUNT(*) FROM vehiculos GROUP BY chasis HAVING COUNT(*) > 1;
+SELECT id_vehiculo, placa, precio, estado FROM vehiculos LIMIT 10;
+
+
+Archivo 04 - EJECUTAR UNA VEZ - SQL
+
+ALTER TABLE vehiculos
+  MODIFY precio DECIMAL(12,2) NOT NULL,
+  MODIFY estado VARCHAR(255) NOT NULL;
+
+CREATE TABLE reservas (
+  id VARCHAR(36) PRIMARY KEY,
+  operacion_id VARCHAR(64) NOT NULL UNIQUE,
+  vehiculo_id INT NOT NULL,
+  precio DECIMAL(12,2) NOT NULL,
+  moneda VARCHAR(3) NOT NULL,
+  estado VARCHAR(20) NOT NULL,
+  CONSTRAINT fk_reserva_vehiculo FOREIGN KEY (vehiculo_id)
+      REFERENCES vehiculos(id_vehiculo),
+  CONSTRAINT ck_reserva_estado CHECK
+      (estado IN ('RESERVADA','CONFIRMADA','LIBERADA'))
+) ENGINE=InnoDB;
+
+
+Archivo 05 - MODIFICAR - Vehiculo.java
+
+@Column(precision = 12, scale = 2, nullable = false)
+private BigDecimal precio;
+
+
+Archivo 06 - CREAR - VehiculoRequest.java
+
+package ec.edu.uta.venta_vehiculos_api.dto;
+
+import java.math.BigDecimal;
+
+import jakarta.validation.constraints.*;
+
+public record VehiculoRequest(
+
+    @NotBlank String marca,
+
+    @NotBlank String modelo,
+
+    @NotBlank String placa,
+
+    @NotBlank @Size(min=17, max=17) String chasis,
+
+    @NotNull Integer anio,
+
+    String color,
+
+    @NotNull @Positive @Digits(integer=10, fraction=2)
+    BigDecimal precio
+
+) {}
+
+
+Archivo 07 - CREAR - VehiculoResponse.java
+
+package ec.edu.uta.venta_vehiculos_api.dto;
+
+import java.math.BigDecimal;
+
+import ec.edu.uta.venta_vehiculos_api.model.Vehiculo;
+
+public record VehiculoResponse(
+
+    Integer idVehiculo,
+
+    String marca, String modelo,
+
+    String placa, String chasis, Integer anio,
+
+    String color, BigDecimal precio, String estado
+
+) {
+
+    public static VehiculoResponse de(Vehiculo v) {
+
+        return new VehiculoResponse(
+
+            v.getIdVehiculo(),
+            v.getMarca(),
+            v.getModelo(),
+            v.getPlaca(),
+            v.getChasis(),
+            v.getAnio(),
+            v.getColor(),
+            v.getPrecio(),
+            v.getEstado()
+        );
+    }
+
+}
+
+
+Archivo 08 - CREAR - ApiError.java
+
+package ec.edu.uta.venta_vehiculos_api.exception;
+
+public class ApiError extends RuntimeException {
+ public final int status;
+ public final String codigo;
+ public ApiError(int status, String codigo, String detalle) {
+  super(detalle);
+  this.status = status;
+  this.codigo = codigo;
+ }
+}
+
+
+Archivo 09 - REEMPLAZAR - ApiExceptionHandler.java
+
+package ec.edu.uta.venta_vehiculos_api.exception;
+
+import java.net.URI;
+
+import java.util.UUID;
+
+import org.slf4j.LoggerFactory;
+
+import org.springframework.dao.DataIntegrityViolationException;
+
+import org.springframework.http.*;
+
+import org.springframework.http.converter.HttpMessageNotReadableException;
+
+import org.springframework.web.bind.MethodArgumentNotValidException;
+
+import org.springframework.web.bind.annotation.*;
+
+import org.springframework.web.ErrorResponse;
+
+import jakarta.servlet.http.HttpServletRequest;
+
+@RestControllerAdvice
+public class ApiExceptionHandler {
+
+    @ExceptionHandler(Exception.class)
+
+    public ResponseEntity<ProblemDetail> manejar(
+            Exception ex, HttpServletRequest req) {
+
+        int status = 500;
+
+        String codigo = "ERROR_INTERNO";
+
+        String detalle = "No fue posible completar la solicitud";
+
+        if (ex instanceof ApiError e) {
+
+            status = e.status;
+            codigo = e.codigo;
+            detalle = e.getMessage();
+
+        } else if (ex instanceof MethodArgumentNotValidException e) {
+
+            status = 422;
+            codigo = "VALIDACION";
+
+            detalle = e.getBindingResult().getFieldErrors().stream()
+
+                .map(x -> x.getField() + ": " + x.getDefaultMessage())
+
+                .reduce((a,b) -> a + "; " + b)
+
+                .orElse("Datos inválidos");
+
+        } else if (ex instanceof HttpMessageNotReadableException) {
+
+            status = 400;
+            codigo = "JSON_INVALIDO";
+            detalle = "JSON ilegible o tipo de dato incorrecto";
+
+        } else if (ex instanceof DataIntegrityViolationException) {
+
+            status = 409;
+            codigo = "CONFLICTO_DATOS";
+            detalle = "Duplicado o relación que impide la operación";
+
+        } else if (ex instanceof IllegalArgumentException) {
+
+            status = 400;
+            codigo = "SOLICITUD_INVALIDA";
+            detalle = ex.getMessage();
+
+        } else if (ex instanceof ErrorResponse e) {
+
+            status = e.getStatusCode().value();
+
+            codigo = "ERROR_HTTP";
+
+            detalle = e.getBody().getDetail();
+        }
+
+        String trace = UUID.randomUUID().toString();
+
+        if (status >= 500)
+            LoggerFactory.getLogger(getClass())
+                .error("Error " + trace, ex);
+
+        ProblemDetail p = ProblemDetail.forStatusAndDetail(
+            HttpStatusCode.valueOf(status), detalle);
+
+        p.setType(URI.create("urn:vehiculos:" + codigo.toLowerCase()));
+
+        p.setInstance(URI.create(req.getRequestURI()));
+
+        p.setProperty("codigo", codigo);
+
+        p.setProperty("traceId", trace);
+
+        return ResponseEntity.status(status)
+            .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+            .body(p);
+
+    }
+
+}
+
+
+Archivo 10 - REEMPLAZAR - VehiculoRepository.java
+
+package ec.edu.uta.venta_vehiculos_api.repository;
+
+import java.util.*;
+
+import jakarta.persistence.LockModeType;
+
+import org.springframework.data.jpa.repository.*;
+
+import org.springframework.data.repository.query.Param;
+
+import ec.edu.uta.venta_vehiculos_api.model.Vehiculo;
+
+public interface VehiculoRepository
+
+    extends JpaRepository<Vehiculo, Integer> {
+
+    Optional<Vehiculo> findByPlaca(String placa);
+
+    Optional<Vehiculo> findByChasis(String chasis);
+
+    List<Vehiculo> findByMarcaContainingIgnoreCase(String marca);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+
+    @Query("select v from Vehiculo v where v.idVehiculo = :id")
+
+    Optional<Vehiculo> bloquear(@Param("id") Integer id);
+
+}
+
+
+Archivo 11 - REEMPLAZAR - VehiculoService.java
+
+package ec.edu.uta.venta_vehiculos_api.service;
+
+import java.math.BigDecimal;
+
+import java.time.Year;
+
+import java.util.*;
+
+import org.springframework.stereotype.Service;
+
+import org.springframework.transaction.annotation.Transactional;
+
+import ec.edu.uta.venta_vehiculos_api.dto.*;
+
+import ec.edu.uta.venta_vehiculos_api.exception.ApiError;
+
+import ec.edu.uta.venta_vehiculos_api.model.Vehiculo;
+
+import ec.edu.uta.venta_vehiculos_api.repository.*;
+
+@Service
+
+@Transactional
+public class VehiculoService {
+
+    private final VehiculoRepository repo;
+
+    private final ReservaRepository reservas;
+
+    public VehiculoService(
+            VehiculoRepository repo,
+            ReservaRepository reservas) {
+
+        this.repo = repo;
+
+        this.reservas = reservas;
+    }
+
+    @Transactional(readOnly = true)
+    public List<VehiculoResponse> listar(String marca) {
+
+        var lista = marca == null
+                ? repo.findAll()
+                : repo.findByMarcaContainingIgnoreCase(marca);
+
+        return lista.stream()
+                .map(VehiculoResponse::de)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public VehiculoResponse obtener(int id) {
+
+        return VehiculoResponse.de(
+                repo.findById(id)
+                    .orElseThrow(() -> falta())
+        );
+    }
+
+    public VehiculoResponse crear(VehiculoRequest d) {
+
+        Vehiculo v = new Vehiculo();
+
+        copiar(v, d);
+
+        v.setEstado("DISPONIBLE");
+
+        return VehiculoResponse.de(repo.saveAndFlush(v));
+    }
+
+    public VehiculoResponse actualizar(int id, VehiculoRequest d) {
+
+        Vehiculo v = editable(id);
+
+        copiar(v, d);
+
+        return VehiculoResponse.de(repo.saveAndFlush(v));
+    }
+
+    public VehiculoResponse precio(int id, Map<String, Object> d) {
+
+        if (d.size() != 1 ||
+                !d.containsKey("precio") ||
+                !(d.get("precio") instanceof Number)) {
+
+            throw new ApiError(
+                    422,
+                    "PATCH_INVALIDO",
+                    "PATCH admite únicamente precio numérico y no nulo"
+            );
+        }
+
+        BigDecimal precio;
+
+        try {
+
+            precio = new BigDecimal(d.get("precio").toString());
+
+        } catch (NumberFormatException e) {
+
+            throw new ApiError(
+                    422,
+                    "PRECIO_INVALIDO",
+                    "Precio inválido"
+            );
+        }
+
+        if (precio.signum() <= 0 ||
+                precio.scale() > 2 ||
+                precio.compareTo(
+                    new BigDecimal("9999999999.99")) > 0) {
+
+            throw new ApiError(
+                    422,
+                    "PRECIO_INVALIDO",
+                    "Precio positivo con máximo dos decimales"
+            );
+        }
+
+        Vehiculo v = editable(id);
+
+        v.setPrecio(precio);
+
+        return VehiculoResponse.de(repo.saveAndFlush(v));
+    }
+
+    public void eliminar(int id) {
+
+        Vehiculo v = editable(id);
+
+        if (reservas.existsByVehiculo_IdVehiculo(id)) {
+
+            throw new ApiError(
+                    409,
+                    "HISTORIAL_RESERVAS",
+                    "Se conserva el vehículo por su historial de reservas"
+            );
+        }
+
+        repo.delete(v);
+
+        repo.flush();
+    }
+
+    private Vehiculo editable(int id) {
+
+        Vehiculo v = repo.bloquear(id)
+                .orElseThrow(() -> falta());
+
+        if (!"DISPONIBLE".equals(v.getEstado())) {
+
+            throw new ApiError(
+                    409,
+                    "VEHICULO_NO_DISPONIBLE",
+                    "Un vehículo reservado o vendido no se modifica ni elimina"
+            );
+        }
+
+        return v;
+    }
+
+    private ApiError falta() {
+
+        return new ApiError(
+                404,
+                "VEHICULO_NO_ENCONTRADO",
+                "El vehículo no existe"
+        );
+    }
+
+    private void copiar(Vehiculo v, VehiculoRequest d) {
+
+        if (d.anio() < 1900 ||
+                d.anio() > Year.now().getValue() + 1) {
+
+            throw new ApiError(
+                    422,
+                    "ANIO_INVALIDO",
+                    "Año fuera de rango"
+            );
+        }
+
+        v.setMarca(d.marca().trim());
+
+        v.setModelo(d.modelo().trim());
+
+        v.setPlaca(
+                d.placa().trim().toUpperCase(Locale.ROOT)
+        );
+
+        v.setChasis(
+                d.chasis().trim().toUpperCase(Locale.ROOT)
+        );
+
+        if (v.getChasis().length() != 17) {
+
+            throw new ApiError(
+                    422,
+                    "CHASIS_INVALIDO",
+                    "Chasis de 17 caracteres"
+            );
+        }
+
+        v.setAnio(d.anio());
+
+        v.setColor(d.color());
+
+        v.setPrecio(d.precio());
+    }
+
+}
+
+
+Archivo 12 - REEMPLAZAR - VehiculoController.java
+
+package ec.edu.uta.venta_vehiculos_api.controller;
+
+import java.net.URI;
+
+import java.util.*;
+
+import jakarta.validation.Valid;
+
+import org.springframework.http.ResponseEntity;
+
+import org.springframework.web.bind.annotation.*;
+
+import ec.edu.uta.venta_vehiculos_api.dto.*;
+
+import ec.edu.uta.venta_vehiculos_api.service.VehiculoService;
+
+import ec.edu.uta.venta_vehiculos_api.client.NotificacionClient;
+
+@RestController
+
+@RequestMapping("/api/vehiculos")
+public class VehiculoController {
+
+    private final VehiculoService service;
+
+    private final NotificacionClient avisos;
+
+    public VehiculoController(
+            VehiculoService service,
+            NotificacionClient avisos) {
+
+        this.service = service;
+
+        this.avisos = avisos;
+    }
+
+    @GetMapping
+    public List<VehiculoResponse> listar(
+
+            @RequestParam(required = false) String marca) {
+
+        return service.listar(marca);
+    }
+
+    @GetMapping("/{id}")
+    public VehiculoResponse obtener(
+
+            @PathVariable int id) {
+
+        return service.obtener(id);
+    }
+
+    @PostMapping
+    public ResponseEntity<VehiculoResponse> crear(
+
+            @Valid @RequestBody VehiculoRequest d) {
+
+        var r = service.crear(d);
+
+        avisos.enviar(
+                r.idVehiculo(),
+                "REGISTRO",
+                "Vehículo registrado"
+        );
+
+        return ResponseEntity.created(
+                URI.create("/api/vehiculos/" + r.idVehiculo())
+        ).body(r);
+    }
+
+    @PutMapping("/{id}")
+    public VehiculoResponse actualizar(
+
+            @PathVariable int id,
+
+            @Valid @RequestBody VehiculoRequest d) {
+
+        var r = service.actualizar(id, d);
+
+        avisos.enviar(
+                id,
+                "ACTUALIZACION",
+                "Vehículo actualizado"
+        );
+
+        return r;
+    }
+
+    @PatchMapping(
+            value = "/{id}",
+            consumes = "application/merge-patch+json"
+    )
+    public VehiculoResponse precio(
+
+            @PathVariable int id,
+
+            @RequestBody Map<String, Object> d) {
+
+        var r = service.precio(id, d);
+
+        avisos.enviar(
+                id,
+                "ACTUALIZACION",
+                "Precio actualizado"
+        );
+
+        return r;
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminar(
+
+            @PathVariable int id) {
+
+        service.eliminar(id);
+
+        avisos.enviar(
+                id,
+                "ELIMINACION",
+                "Vehículo eliminado"
+        );
+
+        return ResponseEntity.noContent().build();
+    }
+
+}
+
+
+Archivo 13 - CREAR - Reserva.java
+
+package ec.edu.uta.venta_vehiculos_api.model;
+
+import java.math.BigDecimal;
+import jakarta.persistence.*;
+
+@Entity
+
+@Table(name="reservas")
+public class Reserva {
+ @Id @Column(length=36)
+ public String id;
+ @Column(name="operacion_id", nullable=false, unique=true, length=64)
+ public String operacionId;
+ @ManyToOne(fetch=FetchType.LAZY, optional=false)
+ @JoinColumn(name="vehiculo_id", nullable=false)
+ public Vehiculo vehiculo;
+ @Column(nullable=false, precision=12, scale=2)
+ public BigDecimal precio;
+ @Column(nullable=false, length=3)
+ public String moneda;
+ @Column(nullable=false, length=20)
+ public String estado;
+
+ public Reserva() {}
+}
+
+
+Archivo 14 - CREAR - ReservaRepository.java
+
+package ec.edu.uta.venta_vehiculos_api.repository;
+
+import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+import ec.edu.uta.venta_vehiculos_api.model.Reserva;
+
+public interface ReservaRepository
+ extends JpaRepository<Reserva,String> {
+
+ Optional<Reserva> findByOperacionId(String operacionId);
+ boolean existsByVehiculo_IdVehiculo(Integer id);
+}
+
+
+Archivo 15 - CREAR - ReservaRequest.java
+
+package ec.edu.uta.venta_vehiculos_api.dto;
+
+import jakarta.validation.constraints.*;
+
+public record ReservaRequest(
+ @NotBlank @Pattern(regexp="[A-Za-z0-9-]{1,64}")
+ String operacionId
+) {}
+
+
+Archivo 16 - CREAR - ReservaResponse.java
+
+package ec.edu.uta.venta_vehiculos_api.dto;
+
+import java.math.BigDecimal;
+import ec.edu.uta.venta_vehiculos_api.model.Reserva;
+
+public record ReservaResponse(
+ String id, String operacionId, Integer vehiculoId,
+ BigDecimal precio, String moneda, String estado
+) {
+
+ public static ReservaResponse de(Reserva r) {
+
+  return new ReservaResponse(r.id,r.operacionId,
+   r.vehiculo.getIdVehiculo(),r.precio,r.moneda,r.estado);
+ }
+}
+
+
+Archivo 17 - CREAR - ReservaService.java
+
+package ec.edu.uta.venta_vehiculos_api.service;
+
+import java.util.UUID;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.*;
+import ec.edu.uta.venta_vehiculos_api.dto.*;
+import ec.edu.uta.venta_vehiculos_api.exception.ApiError;
+import ec.edu.uta.venta_vehiculos_api.model.*;
+import ec.edu.uta.venta_vehiculos_api.repository.*;
+
+@Service
+
+@Transactional(isolation=Isolation.READ_COMMITTED)
+public class ReservaService {
+ private final VehiculoRepository vehiculos;
+ private final ReservaRepository reservas;
+
+ public ReservaService(VehiculoRepository v, ReservaRepository r) {
+  vehiculos=v; reservas=r;
+ }
+
+ public ReservaResponse reservar(int id, String op) {
+
+  Vehiculo v=vehiculos.bloquear(id).orElseThrow(() ->
+   new ApiError(404,"VEHICULO_NO_ENCONTRADO","Vehículo inexistente"));
+
+  var anterior=reservas.findByOperacionId(op);
+
+  if (anterior.isPresent()) {
+   Reserva r=anterior.get();
+
+   if (!r.vehiculo.getIdVehiculo().equals(id))
+
+    throw conflicto("La operación pertenece a otro vehículo");
+
+   return ReservaResponse.de(r);
+  }
+
+  if (!"DISPONIBLE".equals(v.getEstado()))
+
+   throw conflicto("El vehículo no está disponible");
+  Reserva r=new Reserva();
+  r.id=UUID.randomUUID().toString(); r.operacionId=op;
+  r.vehiculo=v; r.precio=v.getPrecio();
+  r.moneda="USD"; r.estado="RESERVADA";
+  v.setEstado("RESERVADO");
+  reservas.saveAndFlush(r);
+
+  return ReservaResponse.de(r);
+ }
+
+ @Transactional(readOnly=true)
+
+ public ReservaResponse obtener(String id) {
+
+  return ReservaResponse.de(buscar(id));
+ }
+
+ @Transactional(readOnly=true)
+
+ public ReservaResponse porOperacion(String op) {
+
+  return ReservaResponse.de(reservas.findByOperacionId(op)
+   .orElseThrow(() -> new ApiError(404,"RESERVA_NO_ENCONTRADA",
+    "La operación no tiene reserva")));
+ }
+
+ public ReservaResponse confirmar(String id) {
+  Reserva r=bloquear(id);
+
+  if ("LIBERADA".equals(r.estado))
+
+   throw conflicto("La reserva fue liberada");
+
+  if ("RESERVADA".equals(r.estado)) {
+
+   if (!"RESERVADO".equals(r.vehiculo.getEstado()))
+
+    throw conflicto("Estado del vehículo inconsistente");
+   r.estado="CONFIRMADA"; r.vehiculo.setEstado("VENDIDO");
+  }
+
+  return ReservaResponse.de(r);
+ }
+
+ public void liberar(String id) {
+  Reserva r=bloquear(id);
+
+  if ("CONFIRMADA".equals(r.estado))
+
+   throw conflicto("No se libera una reserva confirmada");
+
+  if ("RESERVADA".equals(r.estado)) {
+   r.estado="LIBERADA"; r.vehiculo.setEstado("DISPONIBLE");
+  }
+ }
+
+ private Reserva bloquear(String id) {
+  Reserva r=buscar(id);
+
+  vehiculos.bloquear(r.vehiculo.getIdVehiculo()).orElseThrow();
+
+  return refrescar(r);
+ }
+ @jakarta.persistence.PersistenceContext
+ private jakarta.persistence.EntityManager em;
+
+ private Reserva refrescar(Reserva r) {
+  em.refresh(r); em.refresh(r.vehiculo); return r;
+ }
+
+ private Reserva buscar(String id) {
+
+  return reservas.findById(id).orElseThrow(() ->
+   new ApiError(404,"RESERVA_NO_ENCONTRADA","Reserva inexistente"));
+ }
+
+ private ApiError conflicto(String detalle) {
+
+  return new ApiError(409,"CONFLICTO_RESERVA",detalle);
+ }
+}
+
+
+Archivo 18 - CREAR - ReservaController.java
+
+package ec.edu.uta.venta_vehiculos_api.controller;
+
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import ec.edu.uta.venta_vehiculos_api.dto.*;
+import ec.edu.uta.venta_vehiculos_api.service.ReservaService;
+
+@RestController
+public class ReservaController {
+ private final ReservaService service;
+
+ public ReservaController(ReservaService service) {
+  this.service=service;
+ }
+
+ @PostMapping("/api/vehiculos/{id}/reservas")
+
+ public ReservaResponse reservar(@PathVariable int id,
+   @Valid @RequestBody ReservaRequest d) {
+
+  return service.reservar(id,d.operacionId());
+ }
+
+ @GetMapping("/api/reservas/{id}")
+
+ public ReservaResponse obtener(@PathVariable String id) {
+
+  return service.obtener(id);
+ }
+
+ @GetMapping("/api/reservas")
+
+ public ReservaResponse operacion(@RequestParam String operacionId) {
+
+  return service.porOperacion(operacionId);
+ }
+
+ @PutMapping("/api/reservas/{id}/confirmacion")
+
+ public ReservaResponse confirmar(@PathVariable String id) {
+
+  return service.confirmar(id);
+ }
+
+ @DeleteMapping("/api/reservas/{id}")
+
+ public ResponseEntity<Void> liberar(@PathVariable String id) {
+  service.liberar(id); return ResponseEntity.noContent().build();
+ }
+}
+
+
+Archivo 19 - CREAR - IntegrationFilter.java
+
+package ec.edu.uta.venta_vehiculos_api.security;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+import jakarta.servlet.*;
+import jakarta.servlet.http.*;
+
+@Component
+public class IntegrationFilter extends OncePerRequestFilter {
+ private final String key;
+
+ public IntegrationFilter(@Value("${app.security.ventas-key}") String key) {
+
+  if (key.length()<32) throw new IllegalStateException("Clave de servicio corta");
+  this.key=key;
+ }
+ @Override
+ protected void doFilterInternal(HttpServletRequest req,
+   HttpServletResponse res, FilterChain chain)
+   throws IOException, ServletException {
+  String path=req.getRequestURI();
+  boolean interna=path.equals("/api/reservas") ||
+   path.startsWith("/api/reservas/") ||
+   path.matches("/api/vehiculos/[0-9]+/reservas");
+
+  if (interna) {
+
+   String enviada=req.getHeader("X-Service-Key");
+
+   if (enviada==null || !MessageDigest.isEqual(
+    key.getBytes(StandardCharsets.UTF_8),
+    enviada.getBytes(StandardCharsets.UTF_8))) {
+    res.setStatus(401); res.setContentType("application/problem+json");
+    res.getWriter().write("{\"title\":\"Servicio no autorizado\",\"status\":401}");
+
+    return;
+   }
+
+   SecurityContextHolder.getContext().setAuthentication(
+    new UsernamePasswordAuthenticationToken("ventas-api",null,
+     List.of(new SimpleGrantedAuthority("ROLE_SERVICIO_VENTAS"))));
+  }
+  chain.doFilter(req,res);
+ }
+}
+
+
+Archivo 20 - REEMPLAZAR - JwtAuthenticationFilter.java
+
+package ec.edu.uta.venta_vehiculos_api.security;
+
+import java.io.IOException;
+import java.util.List;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+import jakarta.servlet.*;
+import jakarta.servlet.http.*;
+
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+ private final JwtService jwt;
+
+ public JwtAuthenticationFilter(JwtService jwt) { this.jwt=jwt; }
+ @Override
+ protected void doFilterInternal(HttpServletRequest req,
+   HttpServletResponse res, FilterChain chain)
+   throws IOException, ServletException {
+
+  String h=req.getHeader("Authorization");
+
+  if (SecurityContextHolder.getContext().getAuthentication()==null &&
+      h!=null && h.startsWith("Bearer ")) {
+
+   try {
+    var c=jwt.validarToken(h.substring(7));
+
+    if (!"access".equals(c.get("tipo",String.class)))
+
+     throw new IllegalArgumentException("Se requiere access token");
+    String rol=c.get("rol",String.class);
+
+    if (!List.of("CONSULTA","OPERADOR","ADMIN").contains(rol))
+
+     throw new IllegalArgumentException("Rol inválido");
+
+    SecurityContextHolder.getContext().setAuthentication(
+     new UsernamePasswordAuthenticationToken(c.getSubject(),null,
+      List.of(new SimpleGrantedAuthority("ROLE_"+rol))));
+   } catch (Exception ex) { SecurityContextHolder.clearContext(); }
+  }
+  chain.doFilter(req,res);
+ }
+}
+
+
+Archivo 21 - REEMPLAZAR - SecurityConfig.java
+
+package ec.edu.uta.venta_vehiculos_api.security;
+
+import org.springframework.context.annotation.*;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+@Configuration
+public class SecurityConfig {
+
+ @Bean
+ public org.springframework.boot.web.servlet.FilterRegistrationBean<JwtAuthenticationFilter>
+ desactivarJwtServlet(JwtAuthenticationFilter f) {
+  var b=new org.springframework.boot.web.servlet.FilterRegistrationBean<>(f);
+  b.setEnabled(false); return b;
+ }
+
+ @Bean
+ public org.springframework.boot.web.servlet.FilterRegistrationBean<IntegrationFilter>
+ desactivarIntegracionServlet(IntegrationFilter f) {
+  var b=new org.springframework.boot.web.servlet.FilterRegistrationBean<>(f);
+  b.setEnabled(false); return b;
+ }
+
+ @Bean public PasswordEncoder passwordEncoder() {
+
+  return new BCryptPasswordEncoder();
+ }
+
+ @Bean
+
+ public SecurityFilterChain securityFilterChain(HttpSecurity http,
+   JwtAuthenticationFilter jwt, IntegrationFilter integration)
+   throws Exception {
+
+  return http.csrf(c -> c.disable())
+   .sessionManagement(s -> s.sessionCreationPolicy(
+    SessionCreationPolicy.STATELESS))
+   .exceptionHandling(e -> e
+    .authenticationEntryPoint((q,r,x) -> {
+     r.setStatus(401); r.setContentType("application/problem+json");
+     r.getWriter().write("{\"title\":\"No autenticado\",\"status\":401}");
+    })
+    .accessDeniedHandler((q,r,x) -> {
+     r.setStatus(403); r.setContentType("application/problem+json");
+     r.getWriter().write("{\"title\":\"Sin permiso\",\"status\":403}");
+    }))
+   .authorizeHttpRequests(a -> a
+    .requestMatchers("/oauth/token").permitAll()
+    .requestMatchers("/api/reservas", "/api/reservas/**",
+     "/api/vehiculos/*/reservas").hasRole("SERVICIO_VENTAS")
+    .requestMatchers("/api/identidad")
+     .hasAnyRole("CONSULTA","OPERADOR","ADMIN")
+    .requestMatchers(HttpMethod.GET,"/api/vehiculos/**")
+     .hasAnyRole("CONSULTA","OPERADOR","ADMIN")
+    .requestMatchers(HttpMethod.POST,"/api/vehiculos/**")
+     .hasAnyRole("OPERADOR","ADMIN")
+    .requestMatchers(HttpMethod.PUT,"/api/vehiculos/**")
+     .hasAnyRole("OPERADOR","ADMIN")
+    .requestMatchers(HttpMethod.PATCH,"/api/vehiculos/**")
+     .hasAnyRole("OPERADOR","ADMIN")
+    .requestMatchers(HttpMethod.DELETE,"/api/vehiculos/**")
+     .hasRole("ADMIN")
+    .anyRequest().denyAll())
+   .addFilterBefore(jwt,UsernamePasswordAuthenticationFilter.class)
+   .addFilterBefore(integration,JwtAuthenticationFilter.class)
+   .build();
+ }
+}
+
+
+Archivo 22 - CREAR - IdentidadController.java
+
+package ec.edu.uta.venta_vehiculos_api.controller;
+
+import java.util.Map;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+public class IdentidadController {
+
+ @GetMapping("/api/identidad")
+
+ public Map<String,Object> identidad(Authentication a) {
+
+  return Map.of("usuario",a.getName(),"roles",
+   a.getAuthorities().stream().map(x -> x.getAuthority()).toList());
+ }
+}
+
+
+Archivo 23 - OPCIONAL - LocalUsers.java
+
+package ec.edu.uta.venta_vehiculos_api.security;
+
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.*;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import ec.edu.uta.venta_vehiculos_api.repository.UsuarioApiRepository;
+import ec.edu.uta.venta_vehiculos_api.model.UsuarioApi;
+
+@Configuration
+
+@Profile("local")
+public class LocalUsers {
+
+ @Bean CommandLineRunner usuarioInicial(UsuarioApiRepository repo,
+  PasswordEncoder encoder,
+  @Value("${app.bootstrap.user}") String user,
+  @Value("${app.bootstrap.password}") String password,
+  @Value("${app.bootstrap.role:ADMIN}") String rol) {
+
+  return args -> {
+
+   if (!java.util.List.of("ADMIN","OPERADOR","CONSULTA").contains(rol))
+
+    throw new IllegalArgumentException("Rol inicial inválido");
+
+   if (repo.findByUsername(user).isEmpty()) {
+    UsuarioApi u=new UsuarioApi(); u.setUsername(user);
+    u.setPassword(encoder.encode(password)); u.setRol(rol);
+
+    repo.save(u);
+   }
+  };
+ }
+}
+
+
+Archivo 24 - REEMPLAZAR - NotificacionClient.java
+
+package ec.edu.uta.venta_vehiculos_api.client;
+
+import java.time.Duration;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.*;
+import ec.edu.uta.venta_vehiculos_api.dto.NotificacionRequest;
+
+@Component
+public class NotificacionClient {
+ private final RestClient client;
+ private final String destino;
+
+ public NotificacionClient(
+  @Value("${servicios.notificaciones.url}") String url,
+  @Value("${servicios.notificaciones.key}") String key,
+  @Value("${servicios.notificaciones.destinatario}") String destino) {
+  var f=new SimpleClientHttpRequestFactory();
+  f.setConnectTimeout(Duration.ofSeconds(2));
+  f.setReadTimeout(Duration.ofSeconds(3));
+
+  client=RestClient.builder().baseUrl(url).requestFactory(f)
+
+   .defaultHeader("X-Notification-Key",key).build();
+  this.destino=destino;
+ }
+
+ public void enviar(Integer id,String tipo,String mensaje) {
+
+  try {
+   client.post().uri("/api/notificaciones")
+    .body(new NotificacionRequest(id,destino,tipo,mensaje))
+    .retrieve().toBodilessEntity();
+  } catch (RestClientException e) {
+   System.err.println("Notificación no enviada para vehículo "+id);
+  }
+}
+}
+
+
+Archivo 25 - MODIFICAR - AuthController.java
+
+if (!clienteSeguro(authorization)) { ... }
+
+private boolean clienteSeguro(String authorization) {
+
+    try {
+
+        return clienteValido(authorization);
+    } catch (IllegalArgumentException ex) {
+
+        return false;
+    }
+}

@@ -171,8 +171,9 @@ public class AuthController {
         // comprobar las credenciales de la aplicación cliente.
         //
         // Se envía todo el encabezado Authorization
-        // al método clienteValido().
-        if (!clienteValido(authorization)) {
+        // al método clienteSeguro(), que llama a clienteValido()
+        // y convierte un Base64 mal formado en un simple "false".
+        if (!clienteSeguro(authorization)) {
 
 
             // Si clienteValido() devuelve false,
@@ -407,6 +408,24 @@ public class AuthController {
         // Spring/Jackson convertirá automáticamente
         // este objeto a JSON.
         return ResponseEntity.ok(respuesta);
+    }
+
+
+    // Envuelve a clienteValido().
+    //
+    // Si el texto después de "Basic " no es Base64 válido,
+    // Base64.getDecoder().decode() lanza IllegalArgumentException.
+    // Aquí la atrapamos y respondemos "cliente no válido" (401)
+    // en lugar de dejar que se convierta en un error 400.
+    private boolean clienteSeguro(String authorization) {
+
+        try {
+
+            return clienteValido(authorization);
+        } catch (IllegalArgumentException ex) {
+
+            return false;
+        }
     }
 
 

@@ -1,67 +1,39 @@
 package ec.edu.uta.venta_vehiculos_api.client;
 
+import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
-
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.*;
 import ec.edu.uta.venta_vehiculos_api.dto.NotificacionRequest;
-import ec.edu.uta.venta_vehiculos_api.dto.NotificacionResponse;
 
 @Component
 public class NotificacionClient {
+ private final RestClient client;
+ private final String destino;
 
-    private final RestClient restClient;
+ public NotificacionClient(
+  @Value("${servicios.notificaciones.url}") String url,
+  @Value("${servicios.notificaciones.key}") String key,
+  @Value("${servicios.notificaciones.destinatario}") String destino) {
+  var f=new SimpleClientHttpRequestFactory();
+  f.setConnectTimeout(Duration.ofSeconds(2));
+  f.setReadTimeout(Duration.ofSeconds(3));
 
-    public NotificacionClient(
-            @Value("${servicios.notificaciones.url}")
-            String url) {
+  client=RestClient.builder().baseUrl(url).requestFactory(f)
 
-        this.restClient = RestClient
-                .builder()
-                .baseUrl(url)
-                .build();
-    }
+   .defaultHeader("X-Notification-Key",key).build();
+  this.destino=destino;
+ }
 
-    public void enviar(
-            Integer vehiculoId,
-            String tipo,
-            String mensaje) {
+ public void enviar(Integer id,String tipo,String mensaje) {
 
-        NotificacionRequest request =
-                new NotificacionRequest(
-                        vehiculoId,
-                        "javier@uta.edu.ec",
-                        tipo,
-                        mensaje
-                );
-
-        try {
-
-            NotificacionResponse respuesta =
-                    restClient
-                            .post()
-                            .uri("/api/notificaciones")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .body(request)
-                            .retrieve()
-                            .body(NotificacionResponse.class);
-
-            if (respuesta != null) {
-
-                System.out.println(
-                        "NOTIFICACIÓN: "
-                                + respuesta.getMensaje()
-                );
-            }
-
-        } catch (RestClientException e) {
-
-            System.out.println(
-                    "No se pudo contactar con "
-                            + "notificaciones-service"
-            );
-        }
-    }
+  try {
+   client.post().uri("/api/notificaciones")
+    .body(new NotificacionRequest(id,destino,tipo,mensaje))
+    .retrieve().toBodilessEntity();
+  } catch (RestClientException e) {
+   System.err.println("Notificación no enviada para vehículo "+id);
+  }
+}
 }

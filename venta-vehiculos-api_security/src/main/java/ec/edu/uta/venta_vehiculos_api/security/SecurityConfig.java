@@ -1,7 +1,6 @@
 package ec.edu.uta.venta_vehiculos_api.security;
 
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.*;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -13,83 +12,62 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+ @Bean
+ public org.springframework.boot.web.servlet.FilterRegistrationBean<JwtAuthenticationFilter>
+ desactivarJwtServlet(JwtAuthenticationFilter f) {
+  var b=new org.springframework.boot.web.servlet.FilterRegistrationBean<>(f);
+  b.setEnabled(false); return b;
+ }
 
-    public SecurityConfig(
-            JwtAuthenticationFilter jwtAuthenticationFilter) {
+ @Bean
+ public org.springframework.boot.web.servlet.FilterRegistrationBean<IntegrationFilter>
+ desactivarIntegracionServlet(IntegrationFilter f) {
+  var b=new org.springframework.boot.web.servlet.FilterRegistrationBean<>(f);
+  b.setEnabled(false); return b;
+ }
 
-        this.jwtAuthenticationFilter =
-                jwtAuthenticationFilter;
-    }
+ @Bean public PasswordEncoder passwordEncoder() {
 
-    // ESTE ES EL BEAN QUE TE FALTA
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+  return new BCryptPasswordEncoder();
+ }
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http) throws Exception {
+ @Bean
 
-        return http
+ public SecurityFilterChain securityFilterChain(HttpSecurity http,
+   JwtAuthenticationFilter jwt, IntegrationFilter integration)
+   throws Exception {
 
-                .csrf(csrf -> csrf.disable())
-
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(
-                                SessionCreationPolicy.STATELESS
-                        )
-                )
-
-                .authorizeHttpRequests(auth -> auth
-
-                        .requestMatchers("/oauth/token")
-                        .permitAll()
-
-                        .requestMatchers(
-                                HttpMethod.GET,
-                                "/api/vehiculos/**"
-                        )
-                        .hasAnyRole(
-                                "CONSULTA",
-                                "OPERADOR",
-                                "ADMIN"
-                        )
-
-                        .requestMatchers(
-                                HttpMethod.POST,
-                                "/api/vehiculos/**"
-                        )
-                        .hasAnyRole(
-                                "OPERADOR",
-                                "ADMIN"
-                        )
-
-                        .requestMatchers(
-                                HttpMethod.PUT,
-                                "/api/vehiculos/**"
-                        )
-                        .hasAnyRole(
-                                "OPERADOR",
-                                "ADMIN"
-                        )
-
-                        .requestMatchers(
-                                HttpMethod.DELETE,
-                                "/api/vehiculos/**"
-                        )
-                        .hasRole("ADMIN")
-
-                        .anyRequest()
-                        .authenticated()
-                )
-
-                .addFilterBefore(
-                        jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class
-                )
-
-                .build();
-    }
+  return http.csrf(c -> c.disable())
+   .sessionManagement(s -> s.sessionCreationPolicy(
+    SessionCreationPolicy.STATELESS))
+   .exceptionHandling(e -> e
+    .authenticationEntryPoint((q,r,x) -> {
+     r.setStatus(401); r.setContentType("application/problem+json");
+     r.getWriter().write("{\"title\":\"No autenticado\",\"status\":401}");
+    })
+    .accessDeniedHandler((q,r,x) -> {
+     r.setStatus(403); r.setContentType("application/problem+json");
+     r.getWriter().write("{\"title\":\"Sin permiso\",\"status\":403}");
+    }))
+   .authorizeHttpRequests(a -> a
+    .requestMatchers("/oauth/token").permitAll()
+    .requestMatchers("/api/reservas", "/api/reservas/**",
+     "/api/vehiculos/*/reservas").hasRole("SERVICIO_VENTAS")
+    .requestMatchers("/api/identidad")
+     .hasAnyRole("CONSULTA","OPERADOR","ADMIN")
+    .requestMatchers(HttpMethod.GET,"/api/vehiculos/**")
+     .hasAnyRole("CONSULTA","OPERADOR","ADMIN")
+    .requestMatchers(HttpMethod.POST,"/api/vehiculos/**")
+     .hasAnyRole("OPERADOR","ADMIN")
+    .requestMatchers(HttpMethod.PUT,"/api/vehiculos/**")
+     .hasAnyRole("OPERADOR","ADMIN")
+    .requestMatchers(HttpMethod.PATCH,"/api/vehiculos/**")
+     .hasAnyRole("OPERADOR","ADMIN")
+    .requestMatchers(HttpMethod.DELETE,"/api/vehiculos/**")
+     .hasRole("ADMIN")
+    .anyRequest().denyAll())
+   .addFilterBefore(jwt,UsernamePasswordAuthenticationFilter.class)
+   .addFilterBefore(integration,JwtAuthenticationFilter.class)
+   .build();
+ }
 }
