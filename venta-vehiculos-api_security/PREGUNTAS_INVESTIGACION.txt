@@ -1,0 +1,591 @@
+===============================================================================
+ PREGUNTAS DE INVESTIGACIÓN - PROYECTO VENTA DE VEHÍCULOS
+ Aplicaciones Orientadas a Servicios - 2do parcial
+===============================================================================
+
+ 26 estudiantes x 5 preguntas = 130 preguntas.
+
+ TODAS las preguntas salen del proyecto: cada una cita un texto, mensaje,
+ código de error, propiedad o valor que EXISTE en el código, en el
+ application.properties o en el SQL del grupo.
+
+ CÓMO RESPONDER
+ - Busca el texto entre comillas en todo el proyecto
+   (VS Code: Ctrl + Shift + F).
+ - En cada respuesta escribe:
+     * la clase y el método (o el archivo) donde lo encontraste,
+     * la línea de código que lo demuestra (cópiala),
+     * y una explicación con tus palabras.
+ - En las preguntas [PRUEBA] arma tú mismo la petición en Postman (o la
+   consulta en MySQL), ejecútala y adjunta captura de la respuesta.
+
+ Tipos de pregunta:
+   [CÓDIGO]  -> buscar en el código y explicar
+   [CLASE]   -> explicar el concepto usando lo que encontraste
+   [PRUEBA]  -> ejecutar en Postman / MySQL y explicar el resultado
+
+===============================================================================
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 1 - AGUIRRE LEON ILANA SHANTALL (GRUPO E)
+ Tema: configuración y dependencias
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca "spring-boot-starter-validation". ¿En qué archivo está?
+   Nombra tres anotaciones del proyecto que dejarían de funcionar si la quitas.
+
+2. [CÓDIGO] Busca la propiedad "server.address". ¿Qué valor tiene y qué pasa
+   si alguien intenta entrar a la API desde otra computadora?
+
+3. [CÓDIGO] Busca "ddl-auto". ¿Qué valor tiene? Con ese valor, ¿quién creó la
+   tabla de reservas, Hibernate o el grupo? Muestra dónde está ese SQL.
+
+4. [CÓDIGO] Busca "open-in-view". ¿Qué valor tiene? Busca "ReservaResponse.de("
+   y explica por qué esa conversión se hace dentro del servicio y no en el
+   controlador.
+
+5. [PRUEBA] Busca "server.port" en los dos proyectos (vehículos y
+   notificaciones). Arranca ambos y muestra la línea de la consola que
+   confirma el puerto de cada uno.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 2 - BEJARANO MASABANDA CARLOS FABIAN (GRUPO D)
+ Tema: claves y credenciales
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca "app.security.jwt-secret" y sigue dónde se usa con @Value.
+   ¿En qué método se convierte en llave? ¿Se decodifica de Base64 o se usa
+   tal cual?
+
+2. [CÓDIGO] Busca "access-token-minutes" y "refresh-token-minutes". ¿Qué
+   valores tienen? Busca la línea donde esos minutos se convierten para
+   calcular la expiración.
+
+3. [CÓDIGO] Busca el mensaje "Cliente no autorizado". ¿Qué dos propiedades del
+   application.properties se comparan para decidirlo y en qué método?
+
+4. [CÓDIGO] Busca "Clave de servicio corta". ¿Qué propiedad se valida y con
+   qué longitud mínima? Cuenta los caracteres de la clave actual: ¿la cumple?
+
+5. [CÓDIGO] Busca "X-Notification-Key". ¿De qué propiedad sale su valor y a
+   qué servicio se envía? Busca también en el proyecto de notificaciones:
+   ¿ese servicio la revisa?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 3 - CHICAIZA CHANGO EDUARDO JOSUE (GRUPO B)
+ Tema: consultas SQL del grupo
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] En el archivo de SQL que guardó el grupo, busca "group by placa".
+   ¿Cuántas veces aparece? Una de esas consultas está mal: ¿cuál, por qué y
+   cómo se corrige?
+
+2. [PRUEBA] Ejecuta "show index from vehiculos". ¿Placa o chasis tienen índice
+   único? Relaciónalo con el código de error "CONFLICTO_DATOS": ¿podría
+   aparecer al crear un vehículo con placa repetida?
+
+3. [PRUEBA] Ejecuta "SELECT VERSION();". ¿Qué motor y versión tienes? Inserta a
+   mano una reserva con un estado inventado: ¿se respeta "ck_reserva_estado"?
+
+4. [PRUEBA] Escribe una consulta que cuente los vehículos por estado. Compara
+   los estados que salen con los que usa el código ("DISPONIBLE", "RESERVADO",
+   "VENDIDO").
+
+5. [PRUEBA] Ejecuta "select id_vehiculo, placa, precio, estado from vehiculos
+   limit 10". ¿Hay algún vehículo con un estado que el código no reconozca?
+   Busca "Un vehículo reservado o vendido no se modifica ni elimina": ¿qué
+   pasaría si lo intentas editar?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 4 - DE LA CRUZ LLUNDO CAROLINA ELIZABETH (GRUPO G)
+ Tema: estructura de la tabla de reservas
+-------------------------------------------------------------------------------
+
+1. [PRUEBA] Ejecuta "SHOW CREATE TABLE reservas". Copia el resultado y señala
+   dónde están "fk_reserva_vehiculo" y "ck_reserva_estado". ¿Qué hace cada una?
+
+2. [CÓDIGO] Busca "operacion_id" en el SQL y en el código Java. ¿En qué
+   anotación aparece? ¿Qué atributos de la anotación coinciden con la tabla?
+
+3. [CÓDIGO] Busca "existsByVehiculo_IdVehiculo". ¿Qué columna de la tabla de
+   reservas consulta? ¿Qué índice de la tabla la hace rápida?
+
+4. [PRUEBA] Desde MySQL intenta borrar un vehículo que tenga reservas. ¿Qué
+   error da? Luego intenta lo mismo por la API: ¿qué "codigo" responde? Busca
+   la línea que lo decide.
+
+5. [CÓDIGO] Busca "DECIMAL(12,2)" en el SQL y "precision" en las clases Java.
+   ¿En cuántas clases aparece? ¿Por qué deben coincidir con la base?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 5 - ESPIN CAIZA CAMILA GISSELLE (GRUPO C)
+ Tema: el precio y BigDecimal
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca "private BigDecimal precio". ¿Qué anotación tiene encima y
+   qué significa cada uno de sus atributos?
+
+2. [CÓDIGO] Busca "new BigDecimal(d.get". ¿Por qué se llama a toString() antes
+   de crear el BigDecimal? ¿Qué pasaría si se creara desde un double?
+
+3. [CÓDIGO] Busca "9999999999.99". ¿Qué regla implementa y por qué ese número
+   exacto? Relaciónalo con "@Digits" y con "DECIMAL(12,2)".
+
+4. [CÓDIGO] Busca "signum()" y "compareTo(". ¿Qué comprueba cada uno? ¿Por qué
+   no se usa "<" ni equals con BigDecimal?
+
+5. [PRUEBA] Provoca el mensaje "Precio positivo con máximo dos decimales" con
+   dos precios distintos que fallen por razones diferentes. ¿Qué parte de la
+   condición dispara cada uno?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 6 - FERNANDEZ LIMA SANDRO IKER (GRUPO E)
+ Tema: validación de los datos que llegan
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca "@NotBlank" en todo el proyecto. ¿En qué campos aparece? ¿En
+   qué se diferencia de "@NotNull", que también aparece?
+
+2. [CÓDIGO] Busca "Chasis de 17 caracteres" y "@Size(min=17". ¿Por qué el
+   chasis se valida dos veces? Da un ejemplo de chasis que pase una y falle la
+   otra.
+
+3. [CÓDIGO] Busca "Año fuera de rango". ¿Qué rango exacto se acepta? ¿Por qué
+   el límite de arriba cambia cada año?
+
+4. [PRUEBA] Provoca una respuesta con codigo "VALIDACION" que tenga tres errores
+   a la vez. ¿Con qué separador se unen? Busca la línea que los une.
+
+5. [PRUEBA] Al crear un vehículo, envía también "estado": "VENDIDO". ¿Con qué
+   estado queda? Busca "setEstado(\"DISPONIBLE\")" y explica por qué.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 7 - GAMBOA ARAUJO SANTIAGO ALEJANDRO (GRUPA A)
+ Tema: objetos de entrada y salida (DTO)
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca "VehiculoResponse::de" y "VehiculoResponse.de(". ¿Cuántas
+   veces se usa y en qué métodos?
+
+2. [CÓDIGO] Busca "public record". ¿Cuántos records hay en el proyecto y para
+   qué sirve cada uno?
+
+3. [CÓDIGO] Busca "ReservaResponse de(". ¿Qué se devuelve en lugar del vehículo
+   completo? Encuentra la línea con "getIdVehiculo()".
+
+4. [CLASE] Compara los campos de "record VehiculoRequest" y "record
+   VehiculoResponse". ¿Cuáles están solo en uno de los dos y por qué?
+
+5. [CÓDIGO] Busca "class NotificacionRequest". No es un record: compárala con
+   un record del proyecto. ¿Qué código tuvo que escribir de más el programador?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 8 - GUATEMAL AVILEZ BRYAN STALIN (GRUPO D)
+ Tema: manejo de errores
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca "extends RuntimeException". ¿Qué clase es, qué datos guarda y
+   por qué hereda de RuntimeException?
+
+2. [CÓDIGO] Busca "@RestControllerAdvice" en los dos proyectos. ¿Cuántas clases
+   lo usan? ¿Qué diferencia hay entre ellas?
+
+3. [CÓDIGO] Busca "status = 422" y todas las demás asignaciones "status =" del
+   manejador de errores. Haz una tabla: tipo de excepción, status y codigo.
+
+4. [CÓDIGO] Busca "UUID.randomUUID()". ¿En cuántos lugares del proyecto aparece
+   y qué se genera en cada uno?
+
+5. [CÓDIGO] Busca "status >= 500". ¿Qué se hace en ese caso? ¿Por qué solo para
+   esos errores?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 9 - GUEVARA LOPEZ OSCAR MAURICIO (GRUPO C)
+ Tema: en qué orden aparecen los errores
+-------------------------------------------------------------------------------
+
+1. [PRUEBA] Provoca "El vehículo no existe" y también "Vehículo inexistente". Son
+   casi iguales: ¿en qué clase está cada uno y qué operación los dispara?
+
+2. [PRUEBA] Envía una actualización completa con datos inválidos a un id que no
+   existe. ¿Sale "VALIDACION" o "VEHICULO_NO_ENCONTRADO"? Explícalo con
+   "@Valid".
+
+3. [CÓDIGO] En el método del cambio de precio busca la línea "editable(id)".
+   ¿Qué validaciones están antes de esa línea? ¿Qué responde un precio negativo
+   a un id que no existe?
+
+4. [PRUEBA] Provoca el codigo "JSON_INVALIDO". ¿Qué excepción de Spring lo
+   causa? Busca su nombre en el manejador de errores.
+
+5. [PRUEBA] Con un usuario de rol "OPERADOR" intenta eliminar un vehículo que no
+   existe. ¿Qué responde? Busca ".hasRole(\"ADMIN\")" y explica por qué no se
+   llega a buscar el vehículo.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 10 - JAQUE BONILLA VERONICA ANABEL (GRUPO G)
+ Tema: formato de las respuestas de error
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca "urn:vehiculos:". Escribe el "type" exacto que saldría en un
+   error "HISTORIAL_RESERVAS".
+
+2. [CÓDIGO] Busca "No fue posible completar la solicitud". ¿En qué casos lo ve
+   el cliente? ¿Por qué no se le muestra el mensaje real del error?
+
+3. [CÓDIGO] Busca "application/problem+json" y "APPLICATION_PROBLEM_JSON". ¿En
+   cuántas clases aparecen? ¿Por qué en algunas el JSON se escribe a mano?
+
+4. [PRUEBA] Provoca "No autenticado" y "VEHICULO_NO_ENCONTRADO". Compara los
+   campos de las dos respuestas. ¿Por qué una no tiene "traceId"?
+
+5. [CÓDIGO] Busca "setProperty(". ¿Qué campos extra se agregan a los errores,
+   además de los estándar? ¿Para qué sirve cada uno?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 11 - LOPEZ YANTALEMA ERICK ALEXANDER (GRUPO C)
+ Tema: repositorio y bloqueo de filas
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca "PESSIMISTIC_WRITE". ¿En qué método está, qué consulta tiene y
+   qué SQL genera en MySQL?
+
+2. [CÓDIGO] Busca ".bloquear(" en todo el proyecto. Haz la lista de los métodos
+   que lo llaman y de qué clase es cada uno.
+
+3. [CÓDIGO] Busca "findByPlaca" y "findByChasis". ¿Se usan en algún servicio?
+   ¿Para qué se podrían usar?
+
+4. [CÓDIGO] Busca "findByMarcaContainingIgnoreCase". Explica qué significa cada
+   parte del nombre y qué SQL genera.
+
+5. [PRUEBA] En dos consolas de MySQL ejecuta "START TRANSACTION;" y luego
+   "SELECT * FROM vehiculos WHERE id_vehiculo = 1 FOR UPDATE;". ¿Qué pasa en la
+   segunda consola? ¿Y cuando haces COMMIT en la primera?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 12 - MOLINA NUNEZ KAREN VALERIA (GRUPO D)
+ Tema: transacciones
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca "@Transactional" en todo el proyecto. ¿Cuántas veces aparece?
+   ¿Cuáles tienen "readOnly" y por qué?
+
+2. [CÓDIGO] Busca "Isolation.READ_COMMITTED". ¿En qué clase está? Los métodos
+   que tienen su propio @Transactional, ¿usan también ese nivel?
+
+3. [CÓDIGO] Busca "avisos.enviar(". ¿Está antes o después de llamar al servicio?
+   Entonces, ¿la notificación sale antes o después del commit?
+
+4. [CÓDIGO] Busca "saveAndFlush". ¿Cuántas veces aparece? ¿Qué diferencia hay
+   con un save normal?
+
+5. [PRUEBA] Busca "marca == null". Lista los vehículos con el filtro de marca
+   vacío. ¿Entra por el lado del null o no? ¿Qué devuelve y por qué?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 13 - MORALES SANCHEZ ANAHI ALEJANDRA (GRUPO B)
+ Tema: cambio parcial del precio
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca "PATCH admite únicamente precio numérico y no nulo". Enumera
+   las tres condiciones que hacen que salga ese mensaje.
+
+2. [CÓDIGO] Busca "merge-patch+json". ¿Qué obliga a enviar en la petición? ¿En
+   qué otro lugar del proyecto se declara algo parecido?
+
+3. [PRUEBA] Envía el cambio de precio con Content-Type "application/json". ¿Qué
+   codigo sale? ¿Por qué entra por la rama "ErrorResponse" del manejador?
+
+4. [PRUEBA] Envía {"precio": "500"} (con comillas). ¿Qué mensaje sale? ¿Qué
+   parte de la condición lo detecta?
+
+5. [CÓDIGO] Busca "NumberFormatException". ¿Para qué se atrapa si ya se
+   comprobó antes "instanceof Number"?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 14 - NATA ANALUIZA WALTER ALEXIS (GRUPO B)
+ Tema: reglas para modificar y eliminar
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca "Un vehículo reservado o vendido no se modifica ni elimina".
+   ¿En qué método está y qué otros métodos lo usan?
+
+2. [CÓDIGO] Busca "Se conserva el vehículo por su historial de reservas". ¿Qué
+   consulta se hace antes de lanzarlo?
+
+3. [CÓDIGO] Busca "Locale.ROOT". ¿A qué campos se aplica? ¿Qué podría pasar sin
+   él en un servidor configurado en otro idioma?
+
+4. [PRUEBA] Reserva un vehículo, libéralo e intenta eliminarlo. ¿Cuál de los dos
+   mensajes anteriores sale y por qué?
+
+5. [CÓDIGO] Busca ".trim()". ¿A qué campos se aplica y a cuál NO? ¿Podría eso
+   causar algún problema?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 15 - PACHA LUCINTUNA SHEYLA ELIANA (GRUPA A)
+ Tema: controlador de vehículos
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca "@GetMapping", "@PostMapping", "@PutMapping", "@PatchMapping"
+   y "@DeleteMapping" en el controlador de vehículos. Haz una tabla: qué hace
+   cada uno y qué código HTTP responde.
+
+2. [CÓDIGO] Busca "ResponseEntity.created(". ¿Qué header agrega a la respuesta y
+   con qué valor?
+
+3. [CÓDIGO] Busca "\"REGISTRO\"", "\"ACTUALIZACION\"" y "\"ELIMINACION\"". ¿En
+   qué operación se usa cada uno? ¿Qué tipo se envía al cambiar solo el precio?
+
+4. [PRUEBA] Crea un vehículo y busca en la pestaña Headers de Postman el header
+   de la pregunta 2. Copia su valor. ¿Coincide con el id del body?
+
+5. [CÓDIGO] Busca "try" en el controlador de vehículos. ¿Hay alguno? Entonces,
+   ¿quién atrapa los errores que ocurren ahí?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 16 - PALACIOS VACA MARTIN SEBASTIAN (GRUPA A)
+ Tema: tipos de respuesta
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca "noContent()". ¿En qué operaciones aparece y qué código HTTP
+   devuelve?
+
+2. [CÓDIGO] Busca "ResponseEntity<" en los controladores. ¿Qué métodos lo usan y
+   cuáles devuelven el objeto directo? ¿Qué criterio se siguió?
+
+3. [CÓDIGO] Busca "r.precio=v.getPrecio()". Si después cambia el precio del
+   vehículo, ¿qué le pasa al precio de la reserva? ¿Por qué se diseñó así?
+
+4. [PRUEBA] Intenta cambiar el precio de un vehículo vendido con una petición
+   correcta. ¿Qué mensaje sale y de qué método viene?
+
+5. [CÓDIGO] Busca "consumes". ¿Cuántas operaciones lo declaran? ¿Por qué solo
+   esa?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 17 - PEREZ ALVAREZ DAVID ALEXANDER (GRUPA A)
+ Tema: entidad y repositorio de reservas
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca "@ManyToOne". ¿Qué atributos tiene y qué significa cada uno?
+
+2. [CÓDIGO] Busca "r.id=UUID". ¿Qué tipo de id se genera? ¿Por qué no se usa un
+   autoincremento como en vehículos?
+
+3. [CÓDIGO] Busca "public String operacionId". La entidad no tiene getters:
+   ¿cómo se leen sus campos en "ReservaResponse"?
+
+4. [CÓDIGO] Busca "JpaRepository<Reserva,String>" y compáralo con el repositorio
+   de vehículos. ¿Por qué uno usa String y el otro Integer?
+
+5. [PRUEBA] Crea una reserva y búscala en MySQL por su "operacion_id". ¿Coinciden
+   todos los datos con la respuesta de la API?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 18 - PICO COELLO BRITTHANY KORAYMA (GRUPO E)
+ Tema: datos de entrada de las reservas
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca "[A-Za-z0-9-]{1,64}". ¿Qué caracteres permite y cuáles no?
+
+2. [PRUEBA] Prueba tres operacionId que violen esa regla de formas distintas.
+   Anota la respuesta de cada uno.
+
+3. [CÓDIGO] Busca "length=64" en Java y "VARCHAR(64)" en el SQL. ¿Coinciden con
+   la regla de la pregunta 1? ¿Qué pasaría si no coincidieran?
+
+4. [CÓDIGO] Busca "\"USD\"". ¿Dónde se asigna? ¿Qué otros datos se llenan en esa
+   misma parte del código?
+
+5. [CÓDIGO] Busca "findByOperacionId". ¿En cuántos métodos se usa y para qué en
+   cada uno?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 19 - QUITTO NAVARRETE BRYAN LENIN (GRUPO F)
+ Tema: crear reservas e idempotencia
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] En el método "reservar", ordena estos pasos según aparecen:
+   "bloquear(id)", "findByOperacionId(op)", "\"DISPONIBLE\".equals" y
+   "setEstado(\"RESERVADO\")". Explica qué hace cada uno.
+
+2. [PRUEBA] Envía dos veces la misma reserva con el mismo operacionId. ¿Los "id"
+   de las respuestas son iguales? ¿Qué línea lo hace posible?
+
+3. [PRUEBA] Provoca "La operación pertenece a otro vehículo". ¿Qué datos usaste?
+
+4. [PRUEBA] Provoca "El vehículo no está disponible". ¿En qué estado estaba el
+   vehículo en MySQL?
+
+5. [CLASE] ¿Por qué "bloquear(id)" va ANTES que "findByOperacionId(op)"? ¿Qué
+   podría pasar con dos peticiones simultáneas si fuera al revés?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 20 - SANCHEZ SANCHEZ JOSE ESTEBAN (GRUPO C)
+ Tema: estados del vehículo y de la reserva
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca todas las llamadas a "setEstado(". Para cada una anota en qué
+   método está y a qué estado cambia. Con eso dibuja el diagrama de estados del
+   vehículo.
+
+2. [CÓDIGO] Busca "r.estado=" y dibuja el diagrama de estados de la reserva.
+
+3. [PRUEBA] Provoca "No se libera una reserva confirmada" y "La reserva fue
+   liberada". ¿Qué secuencia de pasos usaste para cada uno?
+
+4. [CÓDIGO] Busca "Estado del vehículo inconsistente". ¿En qué situación podría
+   pasar? Intenta provocarlo cambiando el estado del vehículo en MySQL.
+
+5. [PRUEBA] Confirma dos veces la misma reserva. ¿La segunda da error? ¿Qué parte
+   del código explica el resultado?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 21 - SOLIS SALINAS MARIO TOMAS (GRUPO D)
+ Tema: concurrencia
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca "em.refresh(". ¿Qué entidades se refrescan? ¿Por qué se hace
+   después de obtener el bloqueo?
+
+2. [CÓDIGO] Busca "PersistenceContext". ¿Qué objeto se inyecta y para qué se usa
+   en esa clase?
+
+3. [CÓDIGO] Dentro de los métodos "confirmar" y "liberar" busca "save". ¿Hay
+   alguno? Entonces, ¿cómo se guardan los cambios en la base?
+
+4. [PRUEBA] Envía dos reservas al mismo tiempo para el mismo vehículo con
+   operaciones distintas. ¿Qué respondió cada una? ¿Cuántas quedaron en la
+   tabla de reservas?
+
+5. [CÓDIGO] Busca "vehiculos.bloquear(r.vehiculo.getIdVehiculo())". ¿Por qué se
+   bloquea el vehículo cuando lo que se va a cambiar es una reserva?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 22 - TOALOMBO TOAPANTA JUAN CARLOS (GRUPO G)
+ Tema: controlador de reservas
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca la clase que tiene "service.reservar(". Haz una tabla con sus
+   operaciones: método HTTP y qué hace cada una.
+
+2. [CÓDIGO] Busca "@RequestMapping" en los controladores. ¿Por qué el de
+   vehículos lo tiene y el de reservas no?
+
+3. [CÓDIGO] Busca "public ReservaResponse reservar(". ¿Qué código HTTP responde
+   al crear una reserva? ¿Por qué no es 201, como al crear un vehículo?
+
+4. [PRUEBA] Haz la venta completa: reservar, confirmar e intentar liberar.
+   Después de cada paso consulta el estado del vehículo en MySQL y anótalo.
+
+5. [PRUEBA] Intenta usar las reservas solo con el token de un usuario "ADMIN".
+   ¿Qué mensaje sale y de qué clase viene?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 23 - TOASA ESTRELLA ANDRES FABRICIO (GRUPO B)
+ Tema: seguridad entre servicios
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca "X-Service-Key". ¿Con qué propiedad del application.properties
+   se compara?
+
+2. [CÓDIGO] Busca "MessageDigest.isEqual". ¿Por qué se usa en lugar de equals?
+
+3. [CÓDIGO] Busca "[0-9]+/reservas". ¿Qué cubre esa expresión? ¿Qué pasa si el
+   id del vehículo tiene letras?
+
+4. [CÓDIGO] Busca "\"ventas-api\"". ¿Qué rol recibe ese usuario? Busca en qué
+   regla de seguridad se exige ese rol.
+
+5. [PRUEBA] Usa la clave del servicio de ventas para listar vehículos. ¿Funciona?
+   Busca la variable "interna" y explica por qué.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 24 - VACA RAMOS FREDDY SEBASTIAN (GRUPO F)
+ Tema: login y tokens
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca ".claims(Map.of(". ¿Qué datos se guardan dentro del token?
+
+2. [CÓDIGO] Busca "Se requiere access token" y "Rol inválido". ¿Qué revisa cada
+   condición? ¿Qué recibe el cliente cuando falla alguna?
+
+3. [CÓDIGO] Busca "grant_type no soportado". ¿Qué valor de grant_type sí se
+   acepta? ¿Se puede usar hoy el refresh token para algo?
+
+4. [CÓDIGO] Busca "clienteSeguro". ¿Qué hace, qué excepción atrapa y qué
+   problema resuelve?
+
+5. [CÓDIGO] Busca "9999999999" en el código del login. Vas a encontrar código
+   comentado: ¿qué hacía y con qué se reemplazó?
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 25 - VILLALBA LOPEZ WASHINGTON ESTEBAN (GRUPO F)
+ Tema: reglas de acceso por rol
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca ".hasAnyRole(" y ".hasRole(". Haz una tabla con el rol que
+   puede usar cada operación.
+
+2. [CÓDIGO] Busca "denyAll". ¿Qué pasa con una ruta que no está en las reglas?
+
+3. [CÓDIGO] Busca "addFilterBefore". ¿En qué orden quedan los filtros del
+   proyecto? ¿Por qué ese orden?
+
+4. [CÓDIGO] Busca "setEnabled(false)". ¿Qué se desactiva? Investiga por qué hace
+   falta.
+
+5. [PRUEBA] Prueba la misma eliminación de un vehículo con usuarios "CONSULTA",
+   "OPERADOR" y "ADMIN". Anota qué recibe cada uno.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 26 - ZAMBRANO ALBAN RODOLFO ENRIQUE (GRUPO E)
+ Tema: notificaciones y usuarios
+-------------------------------------------------------------------------------
+
+1. [CÓDIGO] Busca "Duration.ofSeconds". ¿Qué tiempos hay y para qué sirve cada
+   uno?
+
+2. [PRUEBA] Apaga el servicio de notificaciones y crea un vehículo. Busca en la
+   consola "Notificación no enviada para vehículo". ¿Se creó igual el vehículo?
+
+3. [CÓDIGO] Busca "@Profile(\"local\")". ¿Qué hace esa clase? ¿Cómo se activa?
+
+4. [CÓDIGO] Busca "BCryptPasswordEncoder" y "passwordEncoder.matches". ¿Dónde se
+   configura y dónde se usa?
+
+5. [PRUEBA] Busca "\"usuario\",a.getName()". ¿Qué operación es? Úsala con tu
+   token y muestra la respuesta.
+
+
+===============================================================================
+ FIN - 130 preguntas
+===============================================================================

@@ -10,7 +10,7 @@ import java.util.Set;
 public class NotificacionService {
 
     private static final Set<String> TIPOS_PERMITIDOS =
-            Set.of("REGISTRO", "ACTUALIZACION", "ELIMINACION");
+            Set.of("REGISTRO", "ACTUALIZACION", "ELIMINACION", "VENTA");
 
     public NotificacionResponse procesar(NotificacionRequest request) {
 

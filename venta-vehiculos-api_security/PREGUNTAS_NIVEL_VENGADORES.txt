@@ -1,0 +1,815 @@
+===============================================================================
+ BANCO DE PREGUNTAS - NIVEL VENGADORES
+ Proyecto Venta de Vehiculos (CODE13012026)
+ Aplicaciones Orientadas a Servicios - 2do parcial
+===============================================================================
+
+ 26 estudiantes x 5 preguntas = 130 preguntas (el profesor no se incluye).
+
+ Estas preguntas son mas dificiles que las del banco normal:
+   - casos borde (que pasa si...),
+   - orden en que se ejecutan las cosas (seguridad -> validacion -> servicio),
+   - concurrencia (dos peticiones al mismo tiempo),
+   - "por que se hizo asi y no de otra forma".
+
+ Tipos de pregunta:
+   [CODIGO]  -> que hace o por que existe una linea / metodo
+   [CLASE]   -> concepto y decision de diseno
+   [PRUEBA]  -> resultado exacto en Postman / MySQL
+
+ Cada estudiante mantiene el mismo tema del banco normal, pero mas profundo.
+
+===============================================================================
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 1 - AGUIRRE LEON ILANA SHANTALL (GRUPO E)
+ Tema: pom.xml y application.properties (Archivos 01 y 02)
+-------------------------------------------------------------------------------
+
+1. [CLASE] Si quito spring-boot-starter-validation del pom pero dejo @Valid y @NotBlank en el codigo, que pasa?
+   R: No compila: los imports jakarta.validation.* ya no existen (salvo que
+      otra dependencia los traiga). Y si solo estuviera la API sin la
+      implementacion (Hibernate Validator), compilaria pero las validaciones
+      NO se ejecutarian: todo pasaria sin revisar.
+
+2. [PRUEBA] Un companero en la misma red abre http://TU_IP:8080/api/vehiculos. Que pasa y por que?
+   R: Conexion rechazada: server.address=127.0.0.1 hace que la API solo
+      escuche en la propia maquina. Para exponerla se pone nginx delante
+      (proxy inverso), que si escucha en la red y reenvia a 127.0.0.1:8080.
+
+3. [PRUEBA] Arranco la API sin haber creado la tabla reservas. Que pasa? Y si la tabla existe pero le falta la columna moneda?
+   R: En ambos casos no arranca por ddl-auto=validate: "Schema-validation:
+      missing table [reservas]" o "missing column [moneda]". Hibernate no la
+      crea, solo compara.
+
+4. [CLASE] Con open-in-view=false, que excepcion saldria si en un controlador se leyera reserva.vehiculo.getMarca() (relacion LAZY)?
+   R: LazyInitializationException ("could not initialize proxy - no Session"),
+      porque la transaccion ya termino al salir del servicio. Se convierte en
+      500. Por eso los DTO se arman dentro del servicio.
+
+5. [PRUEBA] Levanto dos instancias (8080 y 8082) con el mismo properties. El token que saque en 8080, funciona en 8082?
+   R: Si. JWT es stateless: no hay sesion en el servidor; cualquier instancia
+      que tenga el mismo jwt-secret puede verificar la firma.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 2 - BEJARANO MASABANDA CARLOS FABIAN (GRUPO D)
+ Tema: claves y propiedades de seguridad (Archivo 02)
+-------------------------------------------------------------------------------
+
+1. [CLASE] Todo el curso copio el mismo jwt-secret del txt. Que consecuencia tiene?
+   R: Un token generado por la API de un companero es valido en la tuya
+      (misma clave de firma, mismos roles). Por eso cada uno debe generar su
+      propio secreto, que es lo que el ingeniero dejo para mas adelante.
+
+2. [CODIGO] JwtService hace jwtSecret.getBytes(UTF_8); no decodifica el Base64. Cuantos bytes tiene la clave y por que importa?
+   R: El texto tiene 44 caracteres = 44 bytes (352 bits). Para HMAC-SHA, jjwt
+      exige minimo 256 bits (32 bytes). Con menos, Keys.hmacShaKeyFor lanza
+      WeakKeyException.
+
+3. [PRUEBA] Pongo jwt-secret=abc123. Arranca la API? Que pasa en /oauth/token?
+   R: Arranca, porque la clave solo se usa al generar o validar tokens. Pero el
+      login falla con WeakKeyException -> 500 ERROR_INTERNO. (Distinto a la
+      ventas-key corta, que si impide arrancar.)
+
+4. [CLASE] Las claves estan en application.properties dentro del repo Git. Que riesgo hay y como se hace en produccion?
+   R: Cualquiera con acceso al repo las ve, y aunque se borren quedan en el
+      historial de Git. En produccion se usan variables de entorno
+      (app.security.jwt-secret=${JWT_SECRET}), un gestor de secretos o un
+      archivo fuera del repositorio.
+
+5. [CLASE] El Basic Auth manda "vehiculos-client:cliente-local-aula-2026-cambiar" en Base64. Eso lo protege?
+   R: No. Base64 es codificacion, no cifrado: cualquiera lo decodifica. Por eso
+      en produccion todo debe ir por HTTPS (TLS).
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 3 - CHICAIZA CHANGO EDUARDO JOSUE (GRUPO B)
+ Tema: SQL de consulta (Archivo 03)
+-------------------------------------------------------------------------------
+
+1. [CLASE] La consulta "SELECT chasis, COUNT(*) ... GROUP BY placa": en que caso da ERROR en vez de un resultado incorrecto?
+   R: Con sql_mode ONLY_FULL_GROUP_BY (activo por defecto en MySQL 5.7+): error
+      1055, porque chasis no esta en el GROUP BY ni dentro de una funcion de
+      agregacion. En MariaDB (XAMPP) no viene activo y devuelve un chasis
+      "cualquiera" de cada grupo, que es peor porque no avisa.
+
+2. [CLASE] Por que se ejecuta SELECT VERSION() antes de crear la tabla con CHECK?
+   R: En MySQL anterior a 8.0.16 el CHECK se acepta pero se IGNORA (no valida
+      nada). MariaDB lo aplica desde 10.2.1. Hay que saber si la restriccion
+      de estados realmente va a funcionar.
+
+3. [PRUEBA] SHOW INDEX no muestra UNIQUE en placa. Que pasa si creo dos vehiculos con la misma placa por la API?
+   R: Se crean los dos (201 y 201). El servicio no revisa duplicados; el 409
+      CONFLICTO_DATOS solo aparece si la base tiene el indice UNIQUE.
+
+4. [CLASE] Por que COUNT(*) > 1 va en HAVING y no en WHERE?
+   R: WHERE filtra filas ANTES de agrupar y no puede usar funciones de
+      agregacion. HAVING filtra los GRUPOS ya formados, despues del GROUP BY.
+
+5. [PRUEBA] Escribe una consulta para encontrar vehiculos viejos con chasis que no mide 17 caracteres (que la API ya no aceptaria).
+   R: SELECT id_vehiculo, chasis FROM vehiculos WHERE CHAR_LENGTH(chasis) <> 17;
+      Se usa CHAR_LENGTH (cuenta caracteres) y no LENGTH (cuenta bytes).
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 4 - DE LA CRUZ LLUNDO CAROLINA ELIZABETH (GRUPO G)
+ Tema: SQL que se ejecuta una vez - tabla reservas (Archivo 04)
+-------------------------------------------------------------------------------
+
+1. [PRUEBA] Hay vehiculos con precio NULL. Que pasa con "ALTER TABLE vehiculos MODIFY precio DECIMAL(12,2) NOT NULL"?
+   R: En modo estricto el ALTER falla porque no puede dejar NULL en una columna
+      NOT NULL. Primero hay que corregirlos con un UPDATE ... WHERE precio IS
+      NULL. Sin modo estricto los convierte en 0.00 (peor: datos falsos).
+
+2. [CLASE] El CREATE TABLE da error 150 "Foreign key constraint is incorrectly formed". Cuales son las causas tipicas?
+   R: Tipos distintos entre vehiculo_id e id_vehiculo (INT vs INT UNSIGNED o
+      BIGINT), que la tabla vehiculos no sea InnoDB, o que id_vehiculo no
+      tenga indice/llave. Las dos columnas deben ser exactamente del mismo
+      tipo.
+
+3. [CLASE] El servicio ya busca findByOperacionId antes de crear. Para que sirve ademas el UNIQUE en operacion_id?
+   R: Para la carrera: dos peticiones simultaneas con la misma operacion para
+      vehiculos DISTINTOS bloquean filas diferentes, asi que las dos ven "no
+      existe". La base rechaza la segunda (409 CONFLICTO_DATOS). El codigo
+      cubre el caso normal y la BD es la ultima defensa.
+
+4. [CODIGO] Que indices crea automaticamente este CREATE TABLE y que consulta acelera cada uno?
+   R: PRIMARY KEY (id) -> findById. UNIQUE (operacion_id) -> findByOperacionId.
+      El indice de la FK (vehiculo_id) -> existsByVehiculo_IdVehiculo.
+
+5. [PRUEBA] En MySQL ejecuto DELETE FROM vehiculos WHERE id_vehiculo = 1 y ese vehiculo tiene reservas. Que pasa? Y por la API?
+   R: MySQL lo rechaza (error 1451, la FK lo impide). Por la API ni se llega
+      a eso: el servicio revisa antes existsByVehiculo_IdVehiculo y responde
+      409 HISTORIAL_RESERVAS con un mensaje claro.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 5 - ESPIN CAIZA CAMILA GISSELLE (GRUPO C)
+ Tema: entidad Vehiculo y BigDecimal (Archivo 05)
+-------------------------------------------------------------------------------
+
+1. [CLASE] Que diferencia hay entre new BigDecimal(0.1) y new BigDecimal("0.1")? Por que precio() usa toString()?
+   R: new BigDecimal(0.1) da 0.1000000000000000055511151231257827... (el valor
+      binario real del double); con el texto "0.1" da exactamente 0.1. Por eso
+      el servicio hace new BigDecimal(d.get("precio").toString()).
+
+2. [CLASE] Por que el codigo usa compareTo() y signum() y no equals() para comparar BigDecimal?
+   R: equals() tambien compara la escala: 2.0 y 2.00 NO son "equals". En cambio
+      compareTo() devuelve 0 porque valen lo mismo. signum() devuelve -1, 0 o 1
+      segun el signo.
+
+3. [CODIGO] Que devuelve scale() para 100, para 100.5 y para 1E+3 (creado desde el texto "1E+3")?
+   R: 0, 1 y -3 (notacion cientifica: la escala es negativa). Por eso la
+      condicion es scale() > 2: las escalas 0, 1, 2 o negativas pasan.
+
+4. [PRUEBA] Si alguien inserta 100.555 directo en MySQL en la columna DECIMAL(12,2), que se guarda?
+   R: 100.56: MySQL redondea los decimales sobrantes sin error. Por eso la API
+      rechaza mas de 2 decimales ANTES, para que nunca se cambie un precio sin
+      avisar al cliente.
+
+5. [PRUEBA] Y si insertan 12345678901.00 (11 digitos enteros) directo en MySQL?
+   R: No cabe en DECIMAL(12,2), cuyo maximo es 9999999999.99. En modo estricto
+      da error "Out of range value". La API lo frena antes con
+      @Digits(integer=10) en POST/PUT y con el tope 9999999999.99 en PATCH -> 422.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 6 - FERNANDEZ LIMA SANDRO IKER (GRUPO E)
+ Tema: VehiculoRequest y validaciones (Archivo 06)
+-------------------------------------------------------------------------------
+
+1. [PRUEBA] Mando "chasis": " 1HGCM82633A00435" (un espacio + 16 caracteres = 17). Pasa @Size? Que responde la API?
+   R: @Size cuenta 17 y lo deja pasar. Pero copiar() hace trim(), quedan 16
+      caracteres y responde 422 CHASIS_INVALIDO. Por eso el chasis se valida
+      dos veces.
+
+2. [CODIGO] Por que el rango del anio (1900 a anio actual + 1) se valida en el servicio y no con @Min/@Max?
+   R: @Max necesita un numero fijo al compilar, y el limite cambia cada anio
+      (Year.now() + 1). Por eso se valida en codigo (o haria falta un validador
+      personalizado).
+
+3. [PRUEBA] POST con "precio": -5 y "marca": "" al mismo tiempo. Cuantos errores devuelve?
+   R: Un solo 422 VALIDACION que junta los dos errores en detail, separados por
+      "; " (marca: ...; precio: ...). El orden no esta garantizado.
+
+4. [PRUEBA] POST con "precio": 0. Que responde y que anotacion lo rechaza?
+   R: 422 VALIDACION por @Positive: el 0 no es positivo (@PositiveOrZero si lo
+      aceptaria).
+
+5. [PRUEBA] POST con campos extra que no existen en el DTO: "estado": "VENDIDO" e "idVehiculo": 99. Se respetan?
+   R: No. Spring Boot configura Jackson para ignorar propiedades desconocidas,
+      y el record no tiene esos campos. El vehiculo se crea DISPONIBLE y con
+      el id que genera la BD.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 7 - GAMBOA ARAUJO SANTIAGO ALEJANDRO (GRUPA A)
+ Tema: VehiculoResponse y DTOs (Archivo 07)
+-------------------------------------------------------------------------------
+
+1. [CLASE] Que es "mass assignment" y como lo evita VehiculoRequest?
+   R: Es cuando el cliente asigna campos que no deberia (estado, id) solo con
+      mandarlos en el JSON. Como el DTO solo tiene los campos permitidos, esos
+      valores nunca llegan a la entidad.
+
+2. [CODIGO] Por que VehiculoResponse.de() es un metodo estatico y no un segundo constructor?
+   R: Es el patron "static factory": tiene un nombre que explica lo que hace,
+      deja intacto el constructor canonico del record (el que usa Jackson) y
+      la conversion entidad -> DTO queda en un solo lugar.
+
+3. [CLASE] Como crea Jackson un record si no tiene setters?
+   R: Usa el constructor canonico (Jackson 2.12+ soporta records) y pasa cada
+      propiedad del JSON al parametro que tiene el mismo nombre.
+
+4. [CLASE] Si manana se agrega a Vehiculo un campo "costoCompra" (lo que pago la empresa), aparece en el GET?
+   R: No, hasta que alguien lo agregue a VehiculoResponse. Asi se protegen los
+      datos internos. Si devolvieramos la entidad, ese dato se filtraria solo.
+
+5. [PRUEBA] Hago POST con "precio": 18500.5 y luego GET del mismo vehiculo. Sale igual el precio en ambas respuestas?
+   R: No necesariamente: el POST responde 18500.5, porque devuelve el mismo
+      objeto que se guardo. El GET posterior lo lee de DECIMAL(12,2) y
+      responde 18500.50. El valor es el mismo; cambia la escala.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 8 - GUATEMAL AVILEZ BRYAN STALIN (GRUPO D)
+ Tema: ApiError y manejo general de errores (Archivos 08 y 09)
+-------------------------------------------------------------------------------
+
+1. [CLASE] Si ApiError extendiera Exception (checked) en vez de RuntimeException, que cambiaria en las transacciones?
+   R: Ademas de obligar a poner "throws" en todos lados, @Transactional NO
+      hace rollback por defecto con checked exceptions (solo con
+      RuntimeException y Error). Se confirmarian cambios hechos antes del
+      error, salvo que se use rollbackFor.
+
+2. [CLASE] El 401 "No autenticado" no trae codigo ni traceId, a diferencia de los demas errores. Por que?
+   R: Ocurre en los filtros de Spring Security, antes de llegar a los
+      controladores, y @RestControllerAdvice solo atrapa errores de
+      controladores. Ese JSON lo escribe a mano el authenticationEntryPoint de
+      SecurityConfig.
+
+3. [CODIGO] Por que importa el orden de los "else if (instanceof ...)" en manejar()? Da un ejemplo real.
+   R: Gana la primera rama que coincide. MethodArgumentNotValidException
+      tambien implementa ErrorResponse (con status 400). Si la rama
+      ErrorResponse estuviera antes, los errores de validacion saldrian como
+      400 ERROR_HTTP en vez de 422 VALIDACION.
+
+4. [PRUEBA] En produccion sale un 500 y el usuario te manda captura con traceId 0f7909ca-.... Como encuentras la causa?
+   R: Buscas ese traceId en el log de la aplicacion: se registro
+      "Error <traceId>" con el stacktrace completo. El cliente nunca ve la
+      causa interna (SQL, rutas, versiones).
+
+5. [PRUEBA] Se lanza un ApiError 404 o 409. Queda algo en el log?
+   R: No, solo se registran los status >= 500. Los 4xx son errores del
+      cliente; registrarlos todos llenaria el log de ruido y esconderia los
+      errores reales del servidor.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 9 - GUEVARA LOPEZ OSCAR MAURICIO (GRUPO C)
+ Tema: orden de los errores HTTP (Archivo 09)
+-------------------------------------------------------------------------------
+
+1. [PRUEBA] PUT /api/vehiculos/99999 (no existe) con un body invalido (chasis corto). 404 o 422?
+   R: 422. @Valid se ejecuta al recibir la peticion, antes de entrar al
+      servicio que buscaria el vehiculo. El orden es: seguridad -> lectura y
+      validacion del body -> logica del servicio.
+
+2. [PRUEBA] PATCH /api/vehiculos/99999 con {"precio": -5}. 404 o 422?
+   R: 422 PRECIO_INVALIDO: precio() valida los datos ANTES de llamar a
+      editable(id), que es el que daria 404. Ademas asi no se bloquea una fila
+      para una peticion invalida.
+
+3. [PRUEBA] Con token de OPERADOR hago PATCH /api/vehiculos (sin id). Que responde?
+   R: La seguridad lo deja pasar (la regla PATCH /api/vehiculos/** incluye la
+      ruta base), pero no existe un PATCH en /api/vehiculos.
+      HttpRequestMethodNotSupportedException -> 405 ERROR_HTTP.
+
+4. [PRUEBA] DELETE /api/vehiculos/99999 con token de OPERADOR. 404 o 403?
+   R: 403: la autorizacion se revisa antes de llegar al controlador, y nunca
+      se busca el vehiculo.
+
+5. [CLASE] Por que un duplicado se responde con 409 y no con 400 ni 422?
+   R: 409 Conflict significa que la peticion es valida pero choca con el
+      estado actual (ya existe esa placa, o hay una relacion). No es un error
+      de formato (400) ni de las reglas del dato en si (422).
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 10 - JAQUE BONILLA VERONICA ANABEL (GRUPO G)
+ Tema: ProblemDetail y traceId (Archivo 09)
+-------------------------------------------------------------------------------
+
+1. [PRUEBA] GET /api/reservas (con X-Service-Key correcta) sin el parametro operacionId. Que devuelve?
+   R: 400 con codigo ERROR_HTTP: MissingServletRequestParameterException
+      implementa ErrorResponse. El detail dice algo como "Required parameter
+      'operacionId' is not present."
+
+2. [CLASE] Por que el "type" es un URN (urn:vehiculos:...) y no una URL http?
+   R: El estandar acepta cualquier URI. Un URN identifica el tipo de problema
+      sin prometer una pagina web que se pueda abrir.
+
+3. [CLASE] Por que un cliente debe programar sus "if" usando "codigo" y no el texto de "detail"?
+   R: detail es texto para personas y puede cambiar (redaccion, idioma,
+      tildes). codigo es estable (VEHICULO_NO_DISPONIBLE). Un if que compara
+      el texto se rompe con cualquier cambio de redaccion.
+
+4. [CODIGO] En un error 500, que detail ve el cliente y por que no el mensaje real de la excepcion?
+   R: "No fue posible completar la solicitud", que es el valor por defecto.
+      El mensaje real (por ejemplo, un error SQL) puede revelar tablas, rutas
+      o versiones; ese solo va al log.
+
+5. [PRUEBA] Dos peticiones que dan exactamente el mismo error, tienen el mismo traceId?
+   R: No: cada error genera un UUID nuevo. El traceId identifica la
+      OCURRENCIA; el TIPO de error lo indican codigo y type.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 11 - LOPEZ YANTALEMA ERICK ALEXANDER (GRUPO C)
+ Tema: VehiculoRepository y bloqueo pesimista (Archivo 10)
+-------------------------------------------------------------------------------
+
+1. [CLASE] Si en vez del bloqueo de BD se usara "synchronized" en el metodo de Java, funcionaria con las instancias 8082 y 8083?
+   R: No. synchronized solo bloquea dentro de UNA JVM, y cada instancia tiene
+      la suya. El SELECT ... FOR UPDATE vive en MySQL, que todas las
+      instancias comparten.
+
+2. [CLASE] Diferencia entre bloqueo pesimista y optimista (@Version). Por que aqui se usa el pesimista?
+   R: El pesimista bloquea antes de modificar y los demas esperan. El
+      optimista no bloquea: al guardar compara la version y, si cambio, falla
+      y hay que reintentar. Para reservar un carro (muchos compiten por la
+      misma fila y la operacion es corta), el pesimista evita reintentos y da
+      una respuesta clara.
+
+3. [CODIGO] Cuando se libera el bloqueo del SELECT ... FOR UPDATE?
+   R: Al terminar la transaccion (commit o rollback), es decir, al salir del
+      metodo @Transactional del servicio. No al terminar la consulta.
+
+4. [PRUEBA] Una transaccion tiene bloqueado el vehiculo 1 y no termina (por ejemplo, hay un breakpoint en el debugger). Llega un PUT al vehiculo 1. Que pasa?
+   R: Espera. Si pasa innodb_lock_wait_timeout (50 s por defecto), MySQL aborta
+      la espera (error 1205). Spring lanza una excepcion de bloqueo, que no es
+      DataIntegrity, y se responde 500 ERROR_INTERNO.
+
+5. [CODIGO] En @Query("select v from Vehiculo v where v.idVehiculo = :id"), "Vehiculo" e "idVehiculo" son la tabla y la columna?
+   R: No. Es JPQL: usa el nombre de la ENTIDAD y de sus atributos Java.
+      Hibernate lo traduce a la tabla vehiculos y la columna id_vehiculo.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 12 - MOLINA NUNEZ KAREN VALERIA (GRUPO D)
+ Tema: VehiculoService - transacciones (Archivo 11)
+-------------------------------------------------------------------------------
+
+1. [CLASE] El controlador llama a avisos.enviar() despues de service.crear(). La notificacion sale antes o despues del commit? Por que importa?
+   R: Despues: la transaccion termina al salir del metodo del servicio. Asi
+      no se avisa de un vehiculo que despues hizo rollback, y la llamada HTTP
+      lenta no deja la transaccion ni los bloqueos abiertos.
+
+2. [CLASE] Que riesgo queda con ese diseno (primero commit, luego notificar)?
+   R: Si la app se cae justo despues del commit, el aviso se pierde: el
+      vehiculo existe pero nadie fue notificado. Para garantizarlo se usa el
+      patron Outbox: guardar el aviso en una tabla en la misma transaccion y
+      enviarlo despues.
+
+3. [CODIGO] Si dentro de listar() (readOnly = true) alguien hiciera v.setPrecio(...) por error, se guardaria en la BD?
+   R: No. Con readOnly, Spring pone a Hibernate en modo de flush MANUAL: los
+      cambios en memoria no se mandan a la base, y no se guarda nada (tampoco
+      da error).
+
+4. [CLASE] ReservaService tiene isolation=READ_COMMITTED en la clase, pero obtener() tiene @Transactional(readOnly=true). obtener() usa READ_COMMITTED?
+   R: No. La anotacion del metodo REEMPLAZA por completo la de la clase (no se
+      mezclan). obtener() usa el aislamiento por defecto de la BD (REPEATABLE
+      READ en MySQL/MariaDB).
+
+5. [PRUEBA] GET /api/vehiculos?marca= (con el valor vacio). Que devuelve?
+   R: Todos los vehiculos: llega "" (no null), entonces se ejecuta
+      findByMarcaContainingIgnoreCase(""), que es LIKE '%%' y coincide con
+      todas las marcas.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 13 - MORALES SANCHEZ ANAHI ALEJANDRA (GRUPO B)
+ Tema: PATCH del precio (Archivo 11)
+-------------------------------------------------------------------------------
+
+1. [CLASE] Por que el PATCH recibe Map<String, Object> y no un DTO con @Valid?
+   R: Para saber exactamente que llego: con un DTO, los campos extra se
+      ignorarian en silencio y un campo faltante quedaria null igual que uno
+      enviado como null. Con el Map se exige tamano 1 y la clave "precio".
+
+2. [CLASE] En JSON Merge Patch (RFC 7396), {"precio": null} significa "borrar el campo". Que hace esta API?
+   R: Lo rechaza con 422 PATCH_INVALIDO: el precio es obligatorio (NOT NULL) y
+      no se puede borrar.
+
+3. [CODIGO] Por que hay un try/catch de NumberFormatException si ya se comprobo que es un Number?
+   R: Porque hay Number que no son decimales validos. Por ejemplo, un numero
+      enorme como 1e400 se lee como Double Infinity, y "Infinity" no se puede
+      convertir a BigDecimal. Es programacion defensiva -> 422 PRECIO_INVALIDO.
+
+4. [PRUEBA] PATCH con {"precio": true}. Respuesta?
+   R: 422 PATCH_INVALIDO: un Boolean no es Number.
+
+5. [PRUEBA] PATCH cuyo body es un arreglo: [{"precio": 100}]. Respuesta?
+   R: 400 JSON_INVALIDO: un arreglo no se puede convertir a Map. Falla al leer
+      el body, antes de llegar al servicio.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 14 - NATA ANALUIZA WALTER ALEXIS (GRUPO B)
+ Tema: editable, eliminar y copiar (Archivo 11)
+-------------------------------------------------------------------------------
+
+1. [CLASE] Por que se usa toUpperCase(Locale.ROOT) y no solo toUpperCase()?
+   R: toUpperCase() usa el idioma del servidor. En turco la "i" se convierte
+      en "I" con punto (U+0130) y la placa cambiaria. Locale.ROOT da el mismo
+      resultado en cualquier servidor.
+
+2. [PRUEBA] Un vehiculo se reservo y luego se libero (volvio a DISPONIBLE). Se puede editar con PUT? Y eliminar?
+   R: PUT si, porque esta DISPONIBLE. DELETE no: responde 409
+      HISTORIAL_RESERVAS porque tiene reservas en su historial.
+
+3. [CLASE] Si la FK ya impide borrar un vehiculo con reservas, por que el servicio revisa existsByVehiculo_IdVehiculo antes?
+   R: Para dar un error de negocio claro (409 HISTORIAL_RESERVAS) en vez de un
+      error generico de base de datos (409 CONFLICTO_DATOS), sin depender de
+      que la BD falle.
+
+4. [PRUEBA] DELETE dos veces al mismo vehiculo (sin reservas). Que responde cada uno? Es idempotente?
+   R: El primero responde 204 y el segundo 404 VEHICULO_NO_ENCONTRADO. Si es
+      idempotente: el estado del servidor queda igual (no existe). La
+      idempotencia se mide por el efecto, no por el codigo de respuesta.
+
+5. [CODIGO] En eliminar(), que se revisa primero: el estado o el historial? Que responde un DELETE a un vehiculo RESERVADO?
+   R: Primero editable() (el estado). Un vehiculo RESERVADO responde 409
+      VEHICULO_NO_DISPONIBLE y ni se llega a revisar el historial.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 15 - PACHA LUCINTUNA SHEYLA ELIANA (GRUPA A)
+ Tema: VehiculoController (Archivo 12)
+-------------------------------------------------------------------------------
+
+1. [CLASE] Que metodos HTTP son idempotentes y cual no? Como se "arregla" el POST en las reservas?
+   R: GET, PUT y DELETE son idempotentes; POST no (cada llamada crea otro). En
+      reservas, el operacionId hace que un POST repetido devuelva la misma
+      reserva.
+
+2. [PRUEBA] Hago PUT con exactamente los mismos datos que ya tiene el vehiculo. Que pasa?
+   R: Responde 200 con el mismo vehiculo, y aun asi se envia la notificacion
+      "Vehiculo actualizado": el controlador no compara si algo cambio.
+
+3. [CODIGO] Que URL trae exactamente el header Location al crear? Es absoluta?
+   R: Es relativa: /api/vehiculos/{id} (URI.create("/api/vehiculos/" + id)).
+      El cliente la combina con el host.
+
+4. [CLASE] Por que el controlador no tiene ningun try/catch?
+   R: Porque las excepciones suben y las atrapa ApiExceptionHandler en un solo
+      lugar. El controlador queda delgado: recibe, llama al servicio y
+      responde.
+
+5. [PRUEBA] GET /api/vehiculos/1 con un token de CONSULTA que expiro hace 1 minuto. Que responde?
+   R: 401 No autenticado: validarToken lanza ExpiredJwtException, el filtro la
+      atrapa y limpia la autenticacion, y la ruta exige un rol.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 16 - PALACIOS VACA MARTIN SEBASTIAN (GRUPA A)
+ Tema: PATCH, ResponseEntity y tipos de contenido (Archivo 12)
+-------------------------------------------------------------------------------
+
+1. [CLASE] Por que el PATCH usa application/merge-patch+json y no application/json? Que es JSON Patch?
+   R: Para declarar el significado exacto del body: en Merge Patch (RFC 7396)
+      se mandan solo los campos que cambian. JSON Patch
+      (application/json-patch+json, RFC 6902) es otra cosa: una lista de
+      operaciones con op, path y value.
+
+2. [PRUEBA] Mando el PATCH con el Content-Type correcto pero con body estilo JSON Patch: [{"op":"replace","path":"/precio","value":100}]. Que responde?
+   R: 400 JSON_INVALIDO: es un arreglo, y el endpoint espera un objeto (Map).
+
+3. [CODIGO] Por que listar() y obtener() devuelven el objeto directo, y crear() devuelve ResponseEntity?
+   R: Para responder 200 con body basta devolver el objeto. ResponseEntity se
+      usa cuando hay que cambiar el status (201, 204) o agregar headers
+      (Location).
+
+4. [PRUEBA] Un PATCH correcto (precio valido y Content-Type bien) a un vehiculo VENDIDO. Respuesta?
+   R: 409 VEHICULO_NO_DISPONIBLE: primero se valida el precio y despues
+      editable() ve que no esta DISPONIBLE.
+
+5. [CLASE] Si la API permitiera cambiar el precio de un vehiculo RESERVADO, afectaria a la reserva?
+   R: No. La API no lo permite (409), pero aunque lo permitiera, la reserva
+      guardo su propio precio al reservarse, asi que conservaria el acordado.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 17 - PEREZ ALVAREZ DAVID ALEXANDER (GRUPA A)
+ Tema: entidad Reserva y ReservaRepository (Archivos 13 y 14)
+-------------------------------------------------------------------------------
+
+1. [CLASE] Por que el id de la reserva es un UUID y no AUTO_INCREMENT?
+   R: No se puede adivinar: con 1, 2, 3... alguien podria recorrer reservas
+      ajenas. Ademas se genera en Java sin ir a la BD y es unico aunque haya
+      varias instancias o sistemas.
+
+2. [CODIGO] Reserva tiene sus campos public y sin getters/setters. Como los lee y escribe Hibernate?
+   R: Como las anotaciones estan sobre los campos, Hibernate usa acceso por
+      campo: lee y escribe los atributos directamente por reflexion, sin
+      necesitar getters.
+
+3. [CLASE] Con open-in-view=false y vehiculo LAZY, por que no falla r.vehiculo.getIdVehiculo() en ReservaResponse.de(r)?
+   R: Porque se llama dentro del servicio, con la transaccion abierta. Y
+      ademas, pedir el id a un proxy LAZY no necesita ir a la BD: el proxy ya
+      conoce su id.
+
+4. [CODIGO] Que SQL aproximado genera existsByVehiculo_IdVehiculo(5)?
+   R: Algo como SELECT r.id FROM reservas r WHERE r.vehiculo_id = 5 LIMIT 1:
+      solo verifica si existe al menos una. Usa el indice de la FK.
+
+5. [CLASE] Que indica optional=false en @ManyToOne?
+   R: Que toda reserva debe tener vehiculo (nunca null). Coincide con
+      vehiculo_id NOT NULL y permite a Hibernate usar INNER JOIN.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 18 - PICO COELLO BRITTHANY KORAYMA (GRUPO E)
+ Tema: ReservaRequest y ReservaResponse (Archivos 15 y 16)
+-------------------------------------------------------------------------------
+
+1. [CLASE] Por que el operacionId lo genera el cliente (servicio de ventas) y no el servidor?
+   R: Porque es la clave de idempotencia: el cliente tiene que conocerla ANTES
+      de enviar para poder reintentar con la misma. Si la generara el
+      servidor, un reintento despues de perder la respuesta crearia otra
+      reserva. Es lo mismo que el Idempotency-Key de las pasarelas de pago.
+
+2. [CODIGO] El patron permite hasta 64 caracteres. Con que otras partes del sistema esta alineado ese numero?
+   R: Con la columna operacion_id VARCHAR(64) y con @Column(length=64) de la
+      entidad. Si el patron permitiera mas, la validacion pasaria pero el
+      INSERT fallaria en la base.
+
+3. [PRUEBA] {"operacionId": "OP-001\n"} (con un salto de linea al final). Que responde?
+   R: 422 VALIDACION: @Pattern exige que TODO el texto cumpla el patron, y el
+      salto de linea no esta permitido.
+
+4. [PRUEBA] Body {} (sin operacionId). Que responde?
+   R: 422 VALIDACION por @NotBlank.
+
+5. [CLASE] Por que la respuesta incluye "moneda" si siempre es USD?
+   R: Para que el contrato de la API sea explicito y no cambie: un precio sin
+      moneda es ambiguo, y si manana se aceptan otras monedas, los clientes
+      ya leen el campo.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 19 - QUITTO NAVARRETE BRYAN LENIN (GRUPO F)
+ Tema: reservar e idempotencia (Archivo 17)
+-------------------------------------------------------------------------------
+
+1. [CLASE] reservar() primero bloquea el vehiculo y despues busca el operacionId. Por que en ese orden?
+   R: Si llegan dos peticiones simultaneas con la misma operacion para el
+      mismo vehiculo, quedan en fila: la segunda espera, y al entrar ya
+      encuentra la reserva de la primera y la devuelve (respuesta idempotente,
+      sin error).
+
+2. [PRUEBA] Llega OP-009 para el vehiculo 99999 (no existe), pero OP-009 ya es una reserva del vehiculo 1. Que responde?
+   R: 404 VEHICULO_NO_ENCONTRADO: lo primero que hace es bloquear el vehiculo
+      pedido, y como no existe, ni siquiera revisa la operacion.
+
+3. [PRUEBA] Reservo el vehiculo 1 con OP-001, lo libero y vuelvo a mandar OP-001 al vehiculo 1. Que pasa?
+   R: Devuelve 200 con la reserva existente, en estado LIBERADA. No crea una
+      nueva; para reservar otra vez hay que usar otro operacionId.
+
+4. [CLASE] Por que el POST de reserva devuelve 200 y no 201?
+   R: Porque la misma llamada puede ser una creacion o una repeticion, y el
+      codigo siempre devuelve el recurso con 200. Un diseno mas estricto
+      responderia 201 la primera vez y 200 en las repeticiones.
+
+5. [PRUEBA] Al mismo tiempo llegan OP-050 para el vehiculo 1 y OP-050 para el vehiculo 2 (los dos disponibles). Que pasa?
+   R: Bloquean filas distintas, asi que no se esperan; las dos ven que OP-050
+      no existe y tratan de insertar. Una gana y la otra choca con el UNIQUE
+      de operacion_id: 409 CONFLICTO_DATOS. Su transaccion hace rollback y el
+      vehiculo 2 sigue DISPONIBLE.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 20 - SANCHEZ SANCHEZ JOSE ESTEBAN (GRUPO C)
+ Tema: confirmar, liberar y maquina de estados (Archivo 17)
+-------------------------------------------------------------------------------
+
+1. [CODIGO] Si la reserva esta RESERVADA, por que confirmar() revisa ademas que el vehiculo este RESERVADO?
+   R: Es una defensa contra datos inconsistentes (por ejemplo, alguien cambio
+      el estado a mano en la BD). No se vende algo cuyo estado no cuadra:
+      responde 409 "Estado del vehiculo inconsistente".
+
+2. [PRUEBA] Libero una reserva que ya esta LIBERADA. Que responde?
+   R: 204 sin cambiar nada: solo actua si la reserva esta RESERVADA. Es
+      idempotente.
+
+3. [PRUEBA] Confirmo una reserva LIBERADA. Que responde?
+   R: 409 CONFLICTO_RESERVA "La reserva fue liberada".
+
+4. [CLASE] Se puede pasar un vehiculo de VENDIDO a DISPONIBLE por la API?
+   R: No. Una reserva CONFIRMADA no se puede liberar, y un vehiculo VENDIDO no
+      se edita ni se elimina. VENDIDO es un estado final.
+
+5. [PRUEBA] La reserva A (OP-1) del vehiculo 1 se libera. Despues se crea la reserva B (OP-2) del mismo vehiculo. Ahora intento confirmar A. Que pasa?
+   R: 409 "La reserva fue liberada". A ya no se puede confirmar, aunque el
+      vehiculo este RESERVADO (por B).
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 21 - SOLIS SALINAS MARIO TOMAS (GRUPO D)
+ Tema: concurrencia - aislamiento, bloqueo y refresh (Archivo 17)
+-------------------------------------------------------------------------------
+
+1. [CLASE] Por que ReservaService usa READ_COMMITTED y no el nivel por defecto de MySQL (REPEATABLE READ)?
+   R: En REPEATABLE READ, las lecturas normales usan la "foto" que se tomo en
+      la primera lectura de la transaccion. En bloquear(), la reserva se lee
+      ANTES de obtener el bloqueo, asi que el refresh posterior veria datos
+      viejos. Con READ_COMMITTED, cada consulta ve lo ultimo confirmado.
+
+2. [CLASE] Ademas del aislamiento, que guarda Hibernate en memoria que obliga a hacer em.refresh()?
+   R: La cache de primer nivel (persistence context): si la entidad ya esta
+      cargada, Hibernate devuelve la instancia que tiene en memoria, aunque
+      la base haya cambiado. refresh() obliga a releerla de la BD.
+
+3. [PRUEBA] Llegan al mismo tiempo "confirmar" y "liberar" para la misma reserva RESERVADA. Cuales son los resultados posibles?
+   R: Se ordenan por el bloqueo del vehiculo:
+      - Si gana confirmar: queda CONFIRMADA/VENDIDO y liberar recibe 409 "No se
+        libera una reserva confirmada".
+      - Si gana liberar: queda LIBERADA/DISPONIBLE y confirmar recibe 409 "La
+        reserva fue liberada".
+      Nunca se aplican las dos.
+
+4. [CLASE] Por que se bloquea la fila del VEHICULO y no la de la reserva?
+   R: Porque el recurso que se disputa es el vehiculo: reservar, confirmar,
+      liberar, editar y eliminar pasan todos por su fila. Asi un solo candado
+      ordena todas las operaciones y se evitan bloqueos cruzados (deadlocks).
+
+5. [PRUEBA] Como probarias en clase que dos reservas simultaneas del mismo vehiculo no pasan las dos?
+   R: Mandar las dos peticiones a la vez (Postman Runner en paralelo, o dos
+      curl con & en la terminal) al mismo vehiculo con operaciones distintas.
+      Una debe dar 200 y la otra 409, y en la BD debe quedar una sola reserva
+      RESERVADA.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 22 - TOALOMBO TOAPANTA JUAN CARLOS (GRUPO G)
+ Tema: ReservaController y pruebas de reservas (Archivo 18)
+-------------------------------------------------------------------------------
+
+1. [PRUEBA] POST /api/vehiculos/abc/reservas con X-Service-Key correcta. Que pasa?
+   R: El IntegrationFilter no la reconoce como ruta interna (su regex exige
+      [0-9]+) y no autentica. La regla /api/vehiculos/*/reservas exige
+      SERVICIO_VENTAS -> 401 No autenticado.
+
+2. [PRUEBA] Con X-Service-Key correcta hago GET /api/vehiculos. Que responde?
+   R: 401: la clave de servicio solo autentica en las rutas de reservas. Para
+      vehiculos hace falta un Bearer token.
+
+3. [PRUEBA] Mando X-Service-Key correcta y ADEMAS un Bearer de CONSULTA en un POST de reserva. Funciona? Con que identidad?
+   R: Si, como "ventas-api" con ROLE_SERVICIO_VENTAS: el IntegrationFilter
+      corre primero, y el filtro JWT ve que ya hay autenticacion y no hace
+      nada.
+
+4. [CLASE] Por que confirmar es PUT /api/reservas/{id}/confirmacion y no POST /api/reservas/{id}/confirmar?
+   R: Es estilo REST: la confirmacion se modela como un recurso (sustantivo)
+      que se "pone". PUT es idempotente, y confirmar dos veces da el mismo
+      resultado. Un POST con un verbo en la ruta es estilo RPC.
+
+5. [PRUEBA] Escribe la secuencia completa para "vender" un carro y que verificar en cada paso.
+   R: 1) GET /api/vehiculos/1 (Bearer) -> DISPONIBLE.
+      2) POST /api/vehiculos/1/reservas (X-Service-Key, OP-100) -> reserva
+         RESERVADA, vehiculo RESERVADO.
+      3) PUT /api/reservas/{id}/confirmacion -> CONFIRMADA, vehiculo VENDIDO.
+      4) DELETE /api/reservas/{id} -> 409 (no se libera una confirmada).
+      5) DELETE /api/vehiculos/1 (ADMIN) -> 409 VEHICULO_NO_DISPONIBLE.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 23 - TOASA ESTRELLA ANDRES FABRICIO (GRUPO B)
+ Tema: IntegrationFilter (Archivo 19)
+-------------------------------------------------------------------------------
+
+1. [CLASE] Que es un ataque de tiempo (timing attack) y como lo evita MessageDigest.isEqual?
+   R: equals() se detiene en el primer caracter distinto, asi que una clave
+      "casi correcta" tarda un poquito mas. Midiendo miles de peticiones se
+      podria adivinar caracter por caracter. isEqual compara todo en tiempo
+      constante.
+
+2. [CODIGO] Por que la validacion de longitud (minimo 32) esta en el constructor y no en doFilterInternal?
+   R: Para fallar al arrancar (fail-fast): la app ni inicia con una clave
+      debil, en vez de descubrir el problema en la primera peticion.
+
+3. [CODIGO] Cuando la clave es incorrecta, el filtro escribe la respuesta y hace return sin llamar a chain.doFilter. Que significa eso?
+   R: Que corta la peticion ahi: no llega al resto de Spring Security ni al
+      controlador. El propio filtro responde el 401.
+
+4. [CLASE] Por que el servicio de ventas usa una clave fija (API key) y no un JWT de usuario?
+   R: Porque es comunicacion de maquina a maquina, sin una persona que inicie
+      sesion: se identifica al sistema de ventas. Algo mas avanzado seria
+      OAuth2 client_credentials o mTLS (certificados).
+
+5. [PRUEBA] Mando el header escrito x-service-key (en minusculas). Funciona?
+   R: Si: los NOMBRES de los headers HTTP no distinguen mayusculas y
+      minusculas. El VALOR de la clave si las distingue.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 24 - VACA RAMOS FREDDY SEBASTIAN (GRUPO F)
+ Tema: login y JWT (Archivos 20 y 25)
+-------------------------------------------------------------------------------
+
+1. [PRUEBA] Un usuario tiene en la BD el rol escrito "admin" (en minusculas). El login funciona? Y despues?
+   R: El login da el token (con "admin" adentro), pero en cada peticion el
+      filtro lo rechaza porque no esta en la lista CONSULTA/OPERADOR/ADMIN:
+      401 en todo. El rol se debe guardar en mayusculas.
+
+2. [CLASE] Cambio en la BD el rol de un usuario de ADMIN a CONSULTA. Su token actual deja de ser ADMIN?
+   R: No hasta que expire (maximo 30 min): el rol va dentro del token firmado
+      y el servidor no consulta la BD en cada peticion (stateless). Por eso el
+      access token dura poco.
+
+3. [PRUEBA] Se puede usar el refresh_token en /oauth/token para renovar el acceso?
+   R: Con el codigo actual no: el endpoint exige username y password y solo
+      acepta grant_type=password (cualquier otro responde "grant_type no
+      soportado"). El refresh token se emite, pero todavia no hay flujo para
+      canjearlo.
+
+4. [CLASE] Alguien decodifica el JWT en jwt.io y cambia "rol":"CONSULTA" por "ADMIN". Consigue permisos de admin?
+   R: No. El contenido se puede leer (es solo Base64URL), pero esta firmado:
+      al cambiarlo la firma HMAC ya no coincide, validarToken falla y responde
+      401. Por eso nunca se debe guardar algo secreto dentro del JWT.
+
+5. [PRUEBA] Mando el header "Authorization: bearer <token>" (con b minuscula). Funciona?
+   R: No: el filtro compara startsWith("Bearer ") con B mayuscula, ignora el
+      header y responde 401. Con la pestana Bearer Token de Postman siempre
+      sale bien escrito.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 25 - VILLALBA LOPEZ WASHINGTON ESTEBAN (GRUPO F)
+ Tema: SecurityConfig (Archivo 21)
+-------------------------------------------------------------------------------
+
+1. [CLASE] Gana la primera regla que coincide. Que pasaria si "POST /api/vehiculos/**" estuviera ANTES que "/api/vehiculos/*/reservas"?
+   R: POST /api/vehiculos/1/reservas coincidiria primero con
+      POST /api/vehiculos/** y exigiria OPERADOR o ADMIN. El servicio de
+      ventas (ROLE_SERVICIO_VENTAS) recibiria 403 en todas las reservas.
+
+2. [CODIGO] hasRole("ADMIN") busca la autoridad "ROLE_ADMIN". Que pasaria si el filtro creara SimpleGrantedAuthority("ADMIN") sin el prefijo?
+   R: No coincidiria y todo daria 403. Habria que usar hasAuthority("ADMIN")
+      en vez de hasRole.
+
+3. [CODIGO] Por que el filtro de integracion se agrega ANTES que el de JWT?
+   R: Para que las rutas de reservas se resuelvan primero con la clave de
+      servicio. Si ya autentico, el filtro JWT no la sobrescribe (revisa que
+      getAuthentication() sea null).
+
+4. [CLASE] Que pasaria si no existieran los FilterRegistrationBean con setEnabled(false)?
+   R: Como los filtros son @Component, Spring Boot los registraria tambien
+      como filtros normales del servidor, y correrian fuera de la cadena de
+      Spring Security (ademas de dentro). Desactivandolos se garantiza que
+      corran una sola vez, dentro de la seguridad y en el orden definido.
+
+5. [PRUEBA] Con token de ADMIN: GET /api/inventario (una ruta que no existe). 404 o 403?
+   R: 403 Sin permiso: denyAll() bloquea cualquier ruta no declarada antes de
+      buscar un controlador. Sin token seria 401.
+
+
+-------------------------------------------------------------------------------
+ ESTUDIANTE 26 - ZAMBRANO ALBAN RODOLFO ENRIQUE (GRUPO E)
+ Tema: notificaciones, LocalUsers y AuthController (Archivos 22 a 25)
+-------------------------------------------------------------------------------
+
+1. [PRUEBA] El servicio de notificaciones esta prendido pero colgado (acepta la conexion y no responde). Cuanto tarda un POST de vehiculo? Y si esta apagado?
+   R: Colgado: hasta unos 3 s extra (el timeout de lectura) y luego responde
+      201 igual. Apagado: la conexion se rechaza al instante (puerto cerrado),
+      casi sin demora. Los 2 s del timeout de conexion aplican cuando el host
+      no contesta.
+
+2. [CLASE] Que pasaria sin timeouts en el RestClient si el servicio de notificaciones se cuelga?
+   R: Cada peticion se quedaria esperando sin fin, ocupando un hilo de Tomcat.
+      Con suficientes peticiones se acaban los hilos y la API de vehiculos
+      tambien deja de responder (fallo en cascada).
+
+3. [PRUEBA] El servicio de notificaciones responde 400 (por ejemplo, rechaza el tipo). Falla el POST del vehiculo?
+   R: No: retrieve() lanza HttpClientErrorException, que es una
+      RestClientException; el catch la atrapa y solo imprime el aviso. El
+      vehiculo ya se guardo y responde 201.
+
+4. [CODIGO] Por que LocalUsers esta bajo @Profile("local") y ademas revisa findByUsername antes de crear?
+   R: El perfil evita que en produccion se cree un admin con contrasena
+      conocida. La revision lo hace idempotente: corre en cada arranque pero
+      solo crea el usuario la primera vez.
+
+5. [CLASE] Por que, desde la seguridad, es mejor que un Basic Auth con Base64 invalido responda 401 (Archivo 25) y no 400?
+   R: Sin el cambio saldria 400 SOLICITUD_INVALIDA con el mensaje interno del
+      decodificador (por ejemplo "Illegal base64 character"). Asi se dan
+      pistas al atacante. Con clienteSeguro() la respuesta es siempre la
+      misma ("Cliente no autorizado"), sea credencial mala o formato malo, y
+      semanticamente es un problema de credenciales (401).
+
+
+===============================================================================
+ FIN - 130 preguntas nivel vengadores
+===============================================================================
