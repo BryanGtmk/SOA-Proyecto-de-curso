@@ -1,0 +1,29 @@
+#fastapi, permite trbajar con dependencias  para API REST con python 3.7+ y ASGI, 
+#es un framework moderno, rápido (alto rendimiento), fácil de usar y con soporte para tipado de datos.
+fastapi>=0.115,<1
+#Recime las silicitudes HTTP que llegan al puerto configurado y 
+#las pasa a la aplicación FastAPI, además de servir como servidor ASGI.
+uvicorn>=0.30,<1
+
+#Bliblioteca para trabajar con bases de datos relacionales, 
+#permite mapear objetos de Python a tablas de bases de datos y viceversa.
+SQLAlchemy>=2.0,<2.2
+
+#Bliblioteca para trabajar con bases de datos MySQL,
+#permite mapear objetos de Python a tablas de bases de datos y viceversa.
+PYMYSQL[rsa]>=1.1,<2
+
+
+#Bliblioteca para hacer peticiones HTTP, 
+#permite enviar y recibir datos a través de la red.
+httpx>=0.28,<1
+
+#sirve para validar y serializar datos,
+pydantic>=2.9,<3
+
+#maneja las variables de entorno y la configuración de la aplicación
+python-dotenv>=1.0,<2
+
+#alenbic
+#premite administrar y versionar la estructura de la base de datos
+alembic>=1.13,<2
