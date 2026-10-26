@@ -1,0 +1,40 @@
+#ver version
+py --version
+
+# instalar librerías basicas
+py -m venv .venv
+
+#se creo una carpeta app
+
+#intalar y alza las librerias
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+
+
+#instala todas las librerías de requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+#para ver si esta bien instalado las librerias
+.\.venv\Scripts\python.exe -m pip show fastapi sqlalchemy alebic
+
+#que la funcione con slq noseque
+.\.venv\Scripts\python.exe -m alembic init alembic
+
+
+
+
+-------------------------------------------------------------
+
+CONEXION A BDD
+BD_HOST= 127.0.0.1
+DB_PORT=3306
+DB_NAME=ventas_vehiculos
+DB_USER=root
+DB_PASSWORD=
+
+#URL API DE JAVA
+JAVA_URL=http://127.0.0.1:8080
+VENTAS_SERVICE_KEY=ventas-java-python-aula-2026-key-9F2uN4bS6x8Q1m
+
+#URL API DE NOTIFICATION}
+NOTIFICATIONES_URL=127.0.0.1:8081
+NOTIFICACIONES_KEY=avisos-java-python-aula-2026-key-7G5nP3rQ8c6L2t
