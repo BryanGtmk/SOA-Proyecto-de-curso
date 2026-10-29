@@ -11,7 +11,7 @@ SQLAlchemy>=2.0,<2.2
 
 #Bliblioteca para trabajar con bases de datos MySQL,
 #permite mapear objetos de Python a tablas de bases de datos y viceversa.
-PYMYSQL[rsa]>=1.1,<2
+PyMySQL[rsa]>=1.1,<2
 
 
 #Bliblioteca para hacer peticiones HTTP, 

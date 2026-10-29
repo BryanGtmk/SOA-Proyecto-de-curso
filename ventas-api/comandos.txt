@@ -38,3 +38,36 @@ VENTAS_SERVICE_KEY=ventas-java-python-aula-2026-key-9F2uN4bS6x8Q1m
 #URL API DE NOTIFICATION}
 NOTIFICATIONES_URL=127.0.0.1:8081
 NOTIFICACIONES_KEY=avisos-java-python-aula-2026-key-7G5nP3rQ8c6L2t
+
+-------------------------------------------------------------
+
+# CONFIGURACION (.env)
+# Copiar .env.example a .env y poner las claves reales de Java.
+# El .env NO se sube a git (esta en .gitignore).
+#   DB_NAME = venta_vehiculos   (misma base que usa Java)
+#   NOTIFICACIONES_URL debe llevar http://
+
+# crear las tablas compradores y ventas (solo estas, no toca las de Java)
+.\.venv\Scripts\python.exe -m alembic upgrade head
+
+# ver la version aplicada y comprobar que los modelos coinciden con la BDD
+.\.venv\Scripts\python.exe -m alembic current
+.\.venv\Scripts\python.exe -m alembic check
+
+# levantar la API de ventas (documentacion en http://127.0.0.1:8000/docs)
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+
+# worker de conciliacion: reintenta ventas PENDIENTE / EN_REVISION y notificaciones
+.\.venv\Scripts\python.exe -m app.worker
+# una sola pasada
+.\.venv\Scripts\python.exe -m app.worker --once
+
+# ORDEN PARA PROBAR: MySQL (XAMPP) -> Java 8080 -> notificaciones 8081 -> ventas-api 8000
+# Java:  .\mvnw.cmd spring-boot:run   (el dialecto MariaDB ya esta en application.properties)
+# Token: usuario admin-local (se crea la primera vez con "-Dspring-boot.run.profiles=local")
+
+# ENDPOINTS (todos con Authorization: Bearer <token de Java>)
+# POST /api/compradores      {"documento","nombre","correo"}
+# POST /api/ventas           {"vehiculoId","compradorId"} + cabecera Idempotency-Key
+# GET  /api/ventas/{id}
+# GET  /health
